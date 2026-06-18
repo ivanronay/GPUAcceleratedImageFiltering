@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(OpenCL REQUIRED)
+find_package(OpenCV REQUIRED)
 
 add_executable(ImageFilteringMain
   src/main.cpp
@@ -14,4 +15,5 @@ add_executable(ImageFilteringMain
 
 target_link_libraries(ImageFilteringMain PRIVATE
   OpenCL::OpenCL
+  ${OpenCV_LIBS}
 )
