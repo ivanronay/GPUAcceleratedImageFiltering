@@ -121,16 +121,30 @@ int main() {
 		return 1;
 	}
 
-	// Só-bors zaj hozzáadása (10% zajos pixel)
-	cv::Mat noisyImage = addSaltAndPepperNoise(image, 0.1);
+	// TIME_IT(label, expr) – megmeri expr futasi idejet es kiirja ms-ben
 
-	// Mediánszűrő alkalmazása a zajos képre
-	const int radius = 3; // 7x7 window
-	cv::Mat medianResult = medianFilterCPU(noisyImage, radius);
+	#define TIME_IT(label, expr) \
+		[&]() { \
+			double _t = cv::getTickCount(); \
+			auto _r = (expr); \
+			std::cout << (label) << ": " \
+			          << (cv::getTickCount() - _t) / cv::getTickFrequency() * 1000.0 \
+			          << " ms\n"; \
+			return _r; \
+		}()
 
-	cv::imshow("Original", image);
+	const int radius = 3; // 7x7-es ablak
+
+	cv::Mat noisyImage   = TIME_IT("Salt & Pepper", addSaltAndPepperNoise(image, 0.1));
+
+	std::cout << "\n--- Filter idok (radius=" << radius << ") ---\n";
+	cv::Mat medianResult = TIME_IT("Median CPU", medianFilterCPU(noisyImage, radius));
+	cv::Mat gaussResult  = TIME_IT("Gauss  CPU", gaussianBlurCPU(noisyImage, radius, 1.5f));
+
+	cv::imshow("Original",                  image);
 	cv::imshow("Noisy (10% salt & pepper)", noisyImage);
-	cv::imshow("Median filter (radius=3)", medianResult);
+	cv::imshow("Median filter (radius=3)",  medianResult);
+	cv::imshow("Gauss  blur  (radius=3)",   gaussResult);
 	cv::waitKey(0);
 	return 0;
 }
