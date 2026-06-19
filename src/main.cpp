@@ -83,6 +83,22 @@ cv::Mat medianFilterCPU(const cv::Mat& src, int radius) {
     return dst;
 }
 
+cv::Mat addSaltAndPepperNoise(const cv::Mat& src, double density) {
+    cv::Mat dst = src.clone();
+    int total = dst.rows * dst.cols;
+    int noisyPixels = static_cast<int>(total * density);
+
+    for (int i = 0; i < noisyPixels; ++i) {
+        int row = rand() % dst.rows;
+        int col = rand() % dst.cols;
+        uchar val = (i % 2 == 0) ? 255 : 0;
+        uchar* pixel = dst.ptr<uchar>(row) + col * dst.channels();
+        for (int c = 0; c < dst.channels(); ++c)
+            pixel[c] = val;
+    }
+    return dst;
+}
+
 int main() {
 	// check for device support
     std::vector<cl::Platform> platforms;
@@ -104,10 +120,16 @@ int main() {
 		std::cerr << "Failed to load image\n";
 		return 1;
 	}
+
+	// Só-bors zaj hozzáadása (10% zajos pixel)
+	cv::Mat noisyImage = addSaltAndPepperNoise(image, 0.1);
+
+	// Mediánszűrő alkalmazása a zajos képre
 	const int radius = 3; // 7x7 window
-	cv::Mat medianResult = medianFilterCPU(image, radius);
+	cv::Mat medianResult = medianFilterCPU(noisyImage, radius);
 
 	cv::imshow("Original", image);
+	cv::imshow("Noisy (10% salt & pepper)", noisyImage);
 	cv::imshow("Median filter (radius=3)", medianResult);
 	cv::waitKey(0);
 	return 0;
