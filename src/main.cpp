@@ -88,10 +88,15 @@ int main() {
         return 1;
 	}
 
-	imshow("Duck", image);
+	cv::resize(image, image, cv::Size(512, 512* image.rows/image.cols));
+	cv::Mat og = image.clone();
     double ms = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
-	imshow("Duck Blurred", image);
     std::cout << "This took " << ms << "ms" << std::endl;
+
+    // Display images
+	cv::vconcat(og, image, image);
+	imshow("Duck Blurred", image);
 	cv::waitKey(0);
+
 	return 0;
 }
