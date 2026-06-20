@@ -82,10 +82,16 @@ int main() {
 	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
 	cv::Mat image = cv::imread("../assets/duck.jpg", cv::IMREAD_COLOR);
+
+    if(image.empty()) {
+        std::cerr << "Could not read the image" << std::endl;
+        return 1;
+	}
+
 	imshow("Duck", image);
     double ms = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
 	imshow("Duck Blurred", image);
-    std::cout << "This took " << ms << "ms";
+    std::cout << "This took " << ms << "ms" << std::endl;
 	cv::waitKey(0);
 	return 0;
 }
