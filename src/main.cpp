@@ -1,56 +1,59 @@
-#include<Cl/opencl.hpp>
-#include<opencv2/opencv.hpp>
-#include<iostream>
+#include <Cl/opencl.hpp>
+#include <opencv2/opencv.hpp>
+#include <iostream>
 
-struct RGBA {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
-    unsigned char a;
-};
+#define PI 3.14159265358979323846
 
-cv::Mat GaussianBlur(const unsigned char& input, unsigned char& output, int kernelSize, float sigma) {
-    for(int i = 0; i < input.rows; i++) {
-        for(int j = 0; j < input.cols; j++) {
-            RGBA pixel = inputData[i * input.cols + j];
-        }
-	}
-    return output;
+// Generates 1D gaussian kernel of size 2r+1 with standard deviation sigma
+std::vector<float> generateGaussianKernel(int radius, float sigma) {
+    std::vector<float> kernel((2 * radius + 1));
+    float sum = 0.0f;
+    for(int i = -radius; i <= radius; ++i) {
+        auto value = std::exp(-(i * i) / (2.0f * sigma * sigma));
+        kernel[i + radius] = value;
+        sum += value;
+    }
+    for(float& value : kernel) {
+        value /= sum;
+    }
+    return kernel;
 }
 
-cv::Mat gaussianBlurCPU(const cv::Mat& src, int radius, float sigma) {
+// Applies a gaussian blur to src using the given kernel
+void gaussianBlurCPU(cv::Mat& src, std::vector<float> kernel) {
     int W = src.cols, H = src.rows, C = src.channels();
-    cv::Mat dst = cv::Mat::zeros(H, W, src.type());
+	int kernelRadius = kernel.size() / 2;
+	std::vector temp = std::vector<unsigned char>(W * H * C);
+	auto inputdata = src.data;
 
-    for (int y = 0; y < H; ++y) {
-        for (int x = 0; x < W; ++x) {
-            float weightSum = 0.0f;
-            float vals[3] = { 0, 0, 0 };
-
-            for (int ky = -radius; ky <= radius; ++ky) {
-                for (int kx = -radius; kx <= radius; ++kx) {
-                    // Gaussian weight
-                    float w = std::exp(-(kx*kx + ky*ky) / (2.0f * sigma * sigma));
-
-                    // Clamp to border
-                    int px = std::max(0, std::min(W - 1, x + kx));
-                    int py = std::max(0, std::min(H - 1, y + ky));
-
-                    const uchar* row = src.ptr<uchar>(py);
-                    for (int c = 0; c < C; ++c)
-                        vals[c] += row[px * C + c] * w;
-
-                    weightSum += w;
+    // gaussian blur can be applied separately first row-wise then collumn-wise
+    for(int i = 0; i < H; ++i) {
+        for (int j = 0; j < W; ++j) {
+            for (int c = 0; c < C; ++c) {
+                float sum = 0.0f;
+                for (int k = -kernelRadius; k <= kernelRadius; ++k) {
+					int clampedindex = std::clamp(j + k, 0, W - 1);
+                    unsigned char pixelValue = inputdata[(i * W + clampedindex) * C + c];
+					sum += pixelValue * kernel[k + kernelRadius];
                 }
+				temp[(i * W + j) * C + c] = static_cast<unsigned char>(sum);
             }
+        }
+	}
 
-            uchar* out = dst.ptr<uchar>(y);
-            for (int c = 0; c < C; ++c)
-                out[x * C + c] = static_cast<uchar>(vals[c] / weightSum);
+    for (int j = 0; j < W; ++j) {
+        for (int i = 0; i < H; ++i) {
+            for (int c = 0; c < C; ++c) {
+                float sum = 0.0f;
+                for (int k = -kernelRadius; k <= kernelRadius; ++k) {
+					int clampedindex = std::clamp(i + k, 0, H - 1);
+                    unsigned char pixelValue = temp[(j * H + clampedindex) * C + c];
+                    sum += pixelValue * kernel[k + kernelRadius];
+                }
+                inputdata[(j * H + i) * C + c] = static_cast<unsigned char>(sum);
+            }
         }
     }
-
-    return dst;
 }
 
 int main() {
@@ -71,6 +74,8 @@ int main() {
 
 	cv::Mat image = cv::imread("../assets/duck.jpg", cv::IMREAD_COLOR);
 	imshow("Duck", image);
+    gaussianBlurCPU(image,generateGaussianKernel(2,5));
+	imshow("Duck Blurred", image);
 	cv::waitKey(0);
 	return 0;
 }
