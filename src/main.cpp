@@ -1,8 +1,17 @@
 #include <Cl/opencl.hpp>
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <chrono>
 
 #define PI 3.14159265358979323846
+
+template <typename Func>
+double measure_performance(Func&& func) {
+    auto start = std::chrono::high_resolution_clock::now();
+    func();
+    auto end = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration<double, std::milli>(end - start).count();
+}
 
 // Generates 1D gaussian kernel of size 2r+1 with standard deviation sigma
 std::vector<float> generateGaussianKernel(int radius, float sigma) {
@@ -74,8 +83,9 @@ int main() {
 
 	cv::Mat image = cv::imread("../assets/duck.jpg", cv::IMREAD_COLOR);
 	imshow("Duck", image);
-    gaussianBlurCPU(image,generateGaussianKernel(2,5));
+    double ms = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
 	imshow("Duck Blurred", image);
+    std::cout << "This took " << ms << "ms";
 	cv::waitKey(0);
 	return 0;
 }
