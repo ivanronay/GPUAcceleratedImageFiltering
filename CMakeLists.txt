@@ -9,8 +9,13 @@ find_package(OpenCL REQUIRED)
 find_package(OpenCV REQUIRED)
 
 add_executable(ImageFilteringMain
+  include/cvutils.hpp
   src/main.cpp
   kernels/main.cl
+)
+
+target_include_directories(ImageFilteringMain PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_link_libraries(ImageFilteringMain PRIVATE
