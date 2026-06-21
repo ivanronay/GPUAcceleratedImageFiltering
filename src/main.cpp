@@ -32,10 +32,10 @@ std::vector<float> generateGaussianKernel(int radius, float sigma) {
 void gaussianBlurCPU(cv::Mat& src, std::vector<float> kernel) {
     int W = src.cols, H = src.rows, C = src.channels();
 	int kernelRadius = kernel.size() / 2;
-	std::vector temp = std::vector<unsigned char>(W * H * C);
+	std::vector temp = std::vector<float>(W * H * C);
 	auto inputdata = src.data;
 
-    // gaussian blur can be applied separately first row-wise then collumn-wise
+    // gaussian blur can be applied separately first row-wise then column-wise
     for(int i = 0; i < H; ++i) {
         for (int j = 0; j < W; ++j) {
             float sums[4] = { 0,0,0,0 };
@@ -47,7 +47,7 @@ void gaussianBlurCPU(cv::Mat& src, std::vector<float> kernel) {
                 }
             }
             for (int c = 0; c < C; ++c) {
-			    temp[(i * W + j) * C + c] = static_cast<unsigned char>(sums[c]);
+			    temp[(i * W + j) * C + c] = sums[c];
             }
         }
 	}
@@ -58,7 +58,7 @@ void gaussianBlurCPU(cv::Mat& src, std::vector<float> kernel) {
             for (int k = -kernelRadius; k <= kernelRadius; ++k) {
 				int clampedindex = std::clamp(i + k, 0, H - 1);
                 for (int c = 0; c < C; ++c) {
-                    unsigned char pixelValue = temp[(clampedindex * W + j) * C + c];
+                    float pixelValue = temp[(clampedindex * W + j) * C + c];
                     sums[c] += pixelValue * kernel[k + kernelRadius];
                 }
             }
