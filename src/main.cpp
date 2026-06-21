@@ -1,11 +1,11 @@
-#include<CL/opencl.hpp>
-#include<opencv2/opencv.hpp>
-#include<algorithm>
-#include<cstdlib>
-#include<iostream>
-#include<vector>
+#include <algorithm>
+#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <vector>
 #include <chrono>
 #include "cvutils.hpp"
+#include "clutils.hpp"
 
 #define TIME_IT(label, expr) \
 		[&]() { \
