@@ -4,99 +4,25 @@
 #include<cstdlib>
 #include<iostream>
 #include<vector>
+#include <chrono>
+#include "cvutils.hpp"
 
-struct RGBA {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
-    unsigned char a;
-};
+#define TIME_IT(label, expr) \
+		[&]() { \
+			double _t = cv::getTickCount(); \
+			auto _r = (expr); \
+			std::cout << (label) << ": " \
+			          << (cv::getTickCount() - _t) / cv::getTickFrequency() * 1000.0 \
+			          << " ms\n"; \
+			return _r; \
+		}()
 
-
-cv::Mat gaussianBlurCPU(const cv::Mat& src, int radius, float sigma) {
-    int W = src.cols, H = src.rows, C = src.channels();
-    cv::Mat dst = cv::Mat::zeros(H, W, src.type());
-
-    for (int y = 0; y < H; ++y) {
-        for (int x = 0; x < W; ++x) {
-            float weightSum = 0.0f;
-            float vals[3] = { 0, 0, 0 };
-
-            for (int ky = -radius; ky <= radius; ++ky) {
-                for (int kx = -radius; kx <= radius; ++kx) {
-                    // Gaussian weight
-                    float w = std::exp(-(kx*kx + ky*ky) / (2.0f * sigma * sigma));
-
-                    // Clamp to border
-                    int px = std::max(0, std::min(W - 1, x + kx));
-                    int py = std::max(0, std::min(H - 1, y + ky));
-
-                    const uchar* row = src.ptr<uchar>(py);
-                    for (int c = 0; c < C; ++c)
-                        vals[c] += row[px * C + c] * w;
-
-                    weightSum += w;
-                }
-            }
-
-            uchar* out = dst.ptr<uchar>(y);
-            for (int c = 0; c < C; ++c)
-                out[x * C + c] = static_cast<uchar>(vals[c] / weightSum);
-        }
-    }
-
-    return dst;
-}
-
-// ---------------------------------------------------------------------------
-// CPU reference: Median filter
-// Applies an (2*radius+1) x (2*radius+1) median filter independently to
-// each colour channel. Border pixels are clamped to the image edge.
-// ---------------------------------------------------------------------------
-cv::Mat medianFilterCPU(const cv::Mat& src, int radius) {
-    int W = src.cols, H = src.rows, C = src.channels();
-    cv::Mat dst = cv::Mat::zeros(H, W, src.type());
-
-    int windowSize = (2 * radius + 1) * (2 * radius + 1);
-    std::vector<uchar> window(windowSize);
-
-    for (int y = 0; y < H; ++y) {
-        for (int x = 0; x < W; ++x) {
-            uchar* out = dst.ptr<uchar>(y);
-
-            for (int c = 0; c < C; ++c) {
-                int idx = 0;
-                // For each pixel
-                for (int ky = -radius; ky <= radius; ++ky) {
-                    for (int kx = -radius; kx <= radius; ++kx) {
-                        int px = std::max(0, std::min(W - 1, x + kx));
-                        int py = std::max(0, std::min(H - 1, y + ky));
-                        window[idx++] = src.ptr<uchar>(py)[px * C + c];
-                    }
-                }
-                std::sort(window.begin(), window.end());
-                out[x * C + c] = window[windowSize / 2];
-            }
-        }
-    }
-
-    return dst;
-}
-
-cv::Mat addSaltAndPepperNoise(const cv::Mat& src, double density) {
-    cv::Mat dst = src.clone();
-    int total = dst.rows * dst.cols;
-    int noisyPixels = static_cast<int>(total * density);
-
-    for (int i = 0; i < noisyPixels; ++i) {
-        int row = rand() % dst.rows;
-        int col = rand() % dst.cols;
-        uchar val = (i % 2 == 0) ? 255 : 0;
-        uchar* pixel = dst.ptr<uchar>(row) + col * dst.channels();
-        for (int c = 0; c < dst.channels(); ++c)
-            pixel[c] = val;
-    }
-    return dst;
+template <typename Func>
+double measure_performance(Func&& func) {
+    auto start = std::chrono::high_resolution_clock::now();
+    func();
+    auto end = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration<double, std::milli>(end - start).count();
 }
 
 int main() {
@@ -123,28 +49,32 @@ int main() {
 
 	// TIME_IT(label, expr) – megmeri expr futasi idejet es kiirja ms-ben
 
-	#define TIME_IT(label, expr) \
-		[&]() { \
-			double _t = cv::getTickCount(); \
-			auto _r = (expr); \
-			std::cout << (label) << ": " \
-			          << (cv::getTickCount() - _t) / cv::getTickFrequency() * 1000.0 \
-			          << " ms\n"; \
-			return _r; \
-		}()
-
 	const int radius = 3; // 7x7-es ablak
 
 	cv::Mat noisyImage   = TIME_IT("Salt & Pepper", addSaltAndPepperNoise(image, 0.1));
 
 	std::cout << "\n--- Filter idok (radius=" << radius << ") ---\n";
 	cv::Mat medianResult = TIME_IT("Median CPU", medianFilterCPU(noisyImage, radius));
-	cv::Mat gaussResult  = TIME_IT("Gauss  CPU", gaussianBlurCPU(noisyImage, radius, 1.5f));
 
 	cv::imshow("Original",                  image);
 	cv::imshow("Noisy (10% salt & pepper)", noisyImage);
 	cv::imshow("Median filter (radius=3)",  medianResult);
-	cv::imshow("Gauss  blur  (radius=3)",   gaussResult);
+	image = cv::imread("../assets/duck.jpg", cv::IMREAD_COLOR);
+
+    if(image.empty()) {
+        std::cerr << "Could not read the image" << std::endl;
+        return 1;
+	}
+
+	cv::resize(image, image, cv::Size(512, 512*image.rows/image.cols));
+	cv::Mat og = image.clone();
+    double ms = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
+    std::cout << "Gaussian blur took " << ms << "ms" << std::endl;
+
+    // Display images
+	cv::vconcat(og, image, image);
+	imshow("Duck Blurred", image);
 	cv::waitKey(0);
+
 	return 0;
 }
