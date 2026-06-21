@@ -38,28 +38,32 @@ void gaussianBlurCPU(cv::Mat& src, std::vector<float> kernel) {
     // gaussian blur can be applied separately first row-wise then collumn-wise
     for(int i = 0; i < H; ++i) {
         for (int j = 0; j < W; ++j) {
-            for (int c = 0; c < C; ++c) {
-                float sum = 0.0f;
-                for (int k = -kernelRadius; k <= kernelRadius; ++k) {
-					int clampedindex = std::clamp(j + k, 0, W - 1);
+            float sums[4] = { 0,0,0,0 };
+            for (int k = -kernelRadius; k <= kernelRadius; ++k) {
+				int clampedindex = std::clamp(j + k, 0, W - 1);
+                for (int c = 0; c < C; ++c) {
                     unsigned char pixelValue = inputdata[(i * W + clampedindex) * C + c];
-					sum += pixelValue * kernel[k + kernelRadius];
+					sums[c] += pixelValue * kernel[k + kernelRadius];
                 }
-				temp[(i * W + j) * C + c] = static_cast<unsigned char>(sum);
+            }
+            for (int c = 0; c < C; ++c) {
+			    temp[(i * W + j) * C + c] = static_cast<unsigned char>(sums[c]);
             }
         }
 	}
 
     for (int j = 0; j < W; ++j) {
         for (int i = 0; i < H; ++i) {
-            for (int c = 0; c < C; ++c) {
-                float sum = 0.0f;
-                for (int k = -kernelRadius; k <= kernelRadius; ++k) {
-					int clampedindex = std::clamp(i + k, 0, H - 1);
-                    unsigned char pixelValue = temp[(j * H + clampedindex) * C + c];
-                    sum += pixelValue * kernel[k + kernelRadius];
+            float sums[4] = {0,0,0,0};
+            for (int k = -kernelRadius; k <= kernelRadius; ++k) {
+				int clampedindex = std::clamp(i + k, 0, H - 1);
+                for (int c = 0; c < C; ++c) {
+                    unsigned char pixelValue = temp[(clampedindex * W + j) * C + c];
+                    sums[c] += pixelValue * kernel[k + kernelRadius];
                 }
-                inputdata[(j * H + i) * C + c] = static_cast<unsigned char>(sum);
+            }
+            for (int c = 0; c < C; ++c) {
+                inputdata[(i * W + j) * C + c] = static_cast<unsigned char>(sums[c]);
             }
         }
     }
