@@ -25,8 +25,9 @@ double measure_performance(Func&& func) {
     return std::chrono::duration<double, std::milli>(end - start).count();
 }
 
-int main() {
-	// check for device support
+int main() 
+{
+		// check for device support
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
     for (auto& platform : platforms) {
@@ -38,6 +39,18 @@ int main() {
         }
     }
 
+    // Initialize OpenCL using the helper
+    OpenCLEnv env;
+    cl::Program program;
+    try {
+        env = initOpenCL();
+        std::string source = loadKernelSource("../kernels/main.cl");
+        buildProgram(program, source, env);
+    } catch (const std::exception& e) {
+        std::cerr << "OpenCL Initialization Error. " << std::endl;
+        return 1;
+    }
+
     // silence irritating OpenCV warnings
 	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
@@ -47,8 +60,6 @@ int main() {
 		return 1;
 	}
 
-	// TIME_IT(label, expr) – megmeri expr futasi idejet es kiirja ms-ben
-
 	const int radius = 3; // 7x7-es ablak
 
 	cv::Mat noisyImage   = TIME_IT("Salt & Pepper", addSaltAndPepperNoise(image, 0.1));
@@ -56,9 +67,17 @@ int main() {
 	std::cout << "\n--- Filter idok (radius=" << radius << ") ---\n";
 	cv::Mat medianResult = TIME_IT("Median CPU", medianFilterCPU(noisyImage, radius));
 
+    cv::Mat medianResultGPU = TIME_IT("Median GPU (Naive)", [&]() {
+        cv::Mat result = cv::Mat::zeros(noisyImage.rows, noisyImage.cols, noisyImage.type());
+        runImageFilter2D(program, "medianFilter", env, noisyImage.data, result.data, 
+                   noisyImage.cols, noisyImage.rows, noisyImage.channels(), radius);
+        return result;
+    }());
+
 	cv::imshow("Original",                  image);
 	cv::imshow("Noisy (10% salt & pepper)", noisyImage);
-	cv::imshow("Median filter (radius=3)",  medianResult);
+	cv::imshow("Median filter CPU",         medianResult);
+	cv::imshow("Median filter GPU",         medianResultGPU);
 	image = cv::imread("../assets/duck.jpg", cv::IMREAD_COLOR);
 
     if(image.empty()) {

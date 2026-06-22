@@ -62,3 +62,19 @@ void runProgram(cl::Program& program, const std::string& function_name, OpenCLEn
 
     kernel(cl::EnqueueArgs(env.queue, cl::NDRange(size)),input, output);
 }
+
+// Runs a 2D image processing kernel with the necessary parameters
+void runImageFilter2D(cl::Program& program, const std::string& function_name, OpenCLEnv& env, 
+                      unsigned char* input_data, unsigned char* output_data, 
+                      int width, int height, int channels, int radius) {
+    
+    size_t size = width * height * channels;
+    cl::Buffer input(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size, input_data);
+    cl::Buffer output(env.context, CL_MEM_WRITE_ONLY, size);
+
+    cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int, int, int> kernel(program, function_name);
+
+    kernel(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), input, output, width, height, channels, radius);
+
+    env.queue.enqueueReadBuffer(output, CL_TRUE, 0, size, output_data);
+}

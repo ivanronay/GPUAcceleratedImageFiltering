@@ -31,15 +31,11 @@ __kernel void medianFilter(
 
     int windowSize = (2 * radius + 1) * (2 * radius + 1);
     
-    // Fixed size array for the window elements
-    // 225 elements are enough for radius = 7 (15x15 window)
     unsigned char window[225]; 
 
-    // Filtering is done separately for each channel (e.g. R, G, B)
     for (int c = 0; c < channels; ++c) {
         int idx = 0;
         
-        // Iterate over the window
         for (int ky = -radius; ky <= radius; ++ky) {
             for (int kx = -radius; kx <= radius; ++kx) {
                 // Clamping to edge
