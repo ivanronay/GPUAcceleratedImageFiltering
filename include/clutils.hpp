@@ -1,6 +1,7 @@
 #define __CL_ENABLE_EXCEPTIONS
 
 #include <CL/opencl.hpp>
+#include <iostream>
 
 struct OpenCLEnv {
     cl::Platform platform;
@@ -52,13 +53,18 @@ void buildProgram(cl::Program& program, const std::string& source, const OpenCLE
     }
 }
 
-void runProgram(cl::Program& program, const std::string& function_name, OpenCLEnv& env, unsigned char* data, int width, int height, int channels) {
-    
-	size_t size = width * height * channels;
-    cl::Buffer input(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size, data);
+// Runs a 2D image processing kernel with the necessary parameters
+void run_gaussian_blur_gpu(cl::Program& program, const std::string& function_name, OpenCLEnv& env,
+    unsigned char* input_data, unsigned char* output_data,
+    int width, int height, int channels, int radius) {
+
+    size_t size = width * height * channels;
+    cl::Buffer input(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size, input_data);
     cl::Buffer output(env.context, CL_MEM_WRITE_ONLY, size);
 
-    cl::KernelFunctor<cl::Buffer, cl::Buffer> kernel(program, function_name);
+    cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int, int, int> kernel(program, function_name);
 
-    kernel(cl::EnqueueArgs(env.queue, cl::NDRange(size)),input, output);
+    kernel(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), input, output, width, height, channels, radius);
+
+    env.queue.enqueueReadBuffer(output, CL_TRUE, 0, size, output_data);
 }
