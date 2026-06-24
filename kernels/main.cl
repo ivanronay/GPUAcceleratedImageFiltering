@@ -13,6 +13,37 @@ unsigned char getMedian(unsigned char* window, int size) {
     return window[size / 2];
 }
 
+unsigned char getMedianHistogram(
+    unsigned char* window,
+    int size)
+{
+    int hist[256] = {0};
+
+    // Histogram építése
+    for (int i = 0; i < size; ++i)
+    {
+        hist[window[i]]++;
+    }
+
+    // A medián pozíciója
+    int target = size / 2;
+
+    int count = 0;
+
+    // Keresés a histogramban
+    for (int value = 0; value < 256; ++value)
+    {
+        count += hist[value];
+
+        if (count > target)
+        {
+            return (unsigned char)value;
+        }
+    }
+
+    return 255; // Elméletileg sosem fut le
+}
+
 // Naive median filter kernel
 __kernel void medianFilter(
     __global const unsigned char* input,
@@ -46,7 +77,7 @@ __kernel void medianFilter(
             }
         }
         
-        // get median
-        output[(y * width + x) * channels + c] = getMedian(window, windowSize);
+        // get median using
+        output[(y * width + x) * channels + c] = getMedianHistogram(window, windowSize);
     }
 }
