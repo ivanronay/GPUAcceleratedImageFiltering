@@ -60,7 +60,7 @@ int main()
 		return 1;
 	}
 
-	const int radius = 3; // 7x7-es ablak
+	const int radius = 15; // 7x7-es ablak
 
 	cv::Mat noisyImage   = TIME_IT("Salt & Pepper", addSaltAndPepperNoise(image, 0.1));
 
@@ -74,10 +74,18 @@ int main()
         return result;
     }());
 
+    cv::Mat medianResultGPUShared = TIME_IT("Median GPU (Shared)", [&]() {
+        cv::Mat result = cv::Mat::zeros(noisyImage.rows, noisyImage.cols, noisyImage.type());
+        runImageFilter2DShared(program, "medianFilterShared", env, noisyImage.data, result.data,
+                   noisyImage.cols, noisyImage.rows, noisyImage.channels(), radius);
+        return result;
+    }());
+
 	cv::imshow("Original",                  image);
 	cv::imshow("Noisy (10% salt & pepper)", noisyImage);
 	cv::imshow("Median filter CPU",         medianResult);
-	cv::imshow("Median filter GPU",         medianResultGPU);
+	cv::imshow("Median filter GPU Naive",   medianResultGPU);
+	cv::imshow("Median filter GPU Shared",  medianResultGPUShared);
 	image = cv::imread("../assets/duck.jpg", cv::IMREAD_COLOR);
 
     if(image.empty()) {
