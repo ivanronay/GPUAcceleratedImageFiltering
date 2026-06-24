@@ -66,9 +66,9 @@ void runGaussianBlurGPU(cl::Program& program, OpenCLEnv& env,
     cl::Buffer output(env.context, CL_MEM_WRITE_ONLY, ucharsize);
     cl::Buffer kernelBuffer(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, kernel.size() * sizeof(float), kernel.data());
 
-    //cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int> horizontal(program, "gaussian_blur_horizontal");
-    //horizontal(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), input, temp, kernelBuffer, width, height, channels, radius);
+    cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int> horizontal(program, "gaussian_blur_horizontal");
+    horizontal(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), input, temp, kernelBuffer, width, height, channels, radius);
     cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int> vertical(program, "gaussian_blur_vertical");
-    vertical(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), input, output, kernelBuffer, width, height, channels, radius);
+    vertical(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), temp, output, kernelBuffer, width, height, channels, radius);
     env.queue.enqueueReadBuffer(output, CL_TRUE, 0, ucharsize, output_data);
 }

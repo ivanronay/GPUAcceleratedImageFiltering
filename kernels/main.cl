@@ -1,7 +1,7 @@
 // Naive Gaussian Blur
 __kernel void gaussian_blur_horizontal(
     __global const unsigned char* input,
-    __global unsigned char* output,
+    __global float* output,
     __constant float* kernel_buffer,
     const int width,
     const int height,
@@ -29,7 +29,7 @@ __kernel void gaussian_blur_horizontal(
 }
 
 __kernel void gaussian_blur_vertical(
-    __global const unsigned char* input,
+    __global const float* input,
     __global unsigned char* output,
     __constant float* kernel_buffer,
     const int width,

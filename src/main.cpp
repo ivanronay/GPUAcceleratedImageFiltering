@@ -76,9 +76,11 @@ int main() {
 	cv::resize(image, image, cv::Size(512, 512*image.rows/image.cols));
 	cv::Mat og = image.clone();
 	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
-    double ms = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, generateGaussianKernel(2,5), image.rows, image.cols, image.channels(), 1); });
-    //double ms = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
-    std::cout << "Gaussian blur took " << ms << "ms" << std::endl;
+	int radius = 2;
+    double msGPU = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, generateGaussianKernel(radius,5), image.cols, image.rows, image.channels(), radius); });
+    double msCPU = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
+    std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
+    std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
 
     // Display images
 	cv::vconcat(og, result, image);
