@@ -78,3 +78,23 @@ void runImageFilter2D(cl::Program& program, const std::string& function_name, Op
 
     env.queue.enqueueReadBuffer(output, CL_TRUE, 0, size, output_data);
 }
+
+// Runs a 2D image processing kernel using local/shared memory optimization
+inline void runImageFilter2DShared(cl::Program& program, const std::string& function_name, OpenCLEnv& env, 
+                            unsigned char* input_data, unsigned char* output_data, 
+                            int width, int height, int channels, int radius,
+                            int local_w = 16, int local_h = 16) {
+    
+    size_t size = width * height * channels;
+    cl::Buffer input(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size, input_data);
+    cl::Buffer output(env.context, CL_MEM_WRITE_ONLY, size);
+
+    cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int, int, int> kernel(program, function_name);
+
+    cl::NDRange global_size(width, height);
+    cl::NDRange local_size(local_w, local_h);
+
+    kernel(cl::EnqueueArgs(env.queue, global_size, local_size), input, output, width, height, channels, radius);
+
+    env.queue.enqueueReadBuffer(output, CL_TRUE, 0, size, output_data);
+}
