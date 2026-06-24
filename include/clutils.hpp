@@ -54,17 +54,21 @@ void buildProgram(cl::Program& program, const std::string& source, const OpenCLE
 }
 
 // Runs a 2D image processing kernel with the necessary parameters
-void run_gaussian_blur_gpu(cl::Program& program, const std::string& function_name, OpenCLEnv& env,
-    unsigned char* input_data, unsigned char* output_data,
+void runGaussianBlurGPU(cl::Program& program, OpenCLEnv& env,
+    unsigned char* input_data, unsigned char* output_data, std::vector<float>& kernel,
     int width, int height, int channels, int radius) {
 
-    size_t size = width * height * channels;
-    cl::Buffer input(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size, input_data);
-    cl::Buffer output(env.context, CL_MEM_WRITE_ONLY, size);
+    size_t ucharsize = width * height * channels * sizeof(unsigned char);
+    size_t floatSize = width * height * channels * sizeof(float);
 
-    cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int, int, int> kernel(program, function_name);
+    cl::Buffer input(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, ucharsize, input_data);
+    cl::Buffer temp(env.context, CL_MEM_READ_WRITE, floatSize);
+    cl::Buffer output(env.context, CL_MEM_WRITE_ONLY, ucharsize);
+    cl::Buffer kernelBuffer(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, kernel.size() * sizeof(float), kernel.data());
 
-    kernel(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), input, output, width, height, channels, radius);
-
-    env.queue.enqueueReadBuffer(output, CL_TRUE, 0, size, output_data);
+    //cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int> horizontal(program, "gaussian_blur_horizontal");
+    //horizontal(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), input, temp, kernelBuffer, width, height, channels, radius);
+    cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::Buffer, int, int, int, int> vertical(program, "gaussian_blur_vertical");
+    vertical(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), input, output, kernelBuffer, width, height, channels, radius);
+    env.queue.enqueueReadBuffer(output, CL_TRUE, 0, ucharsize, output_data);
 }

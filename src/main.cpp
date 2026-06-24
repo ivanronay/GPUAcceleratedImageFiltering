@@ -38,6 +38,19 @@ int main() {
         }
     }
 
+	OpenCLEnv env;
+	cl::Program program;
+	try {
+		env = initOpenCL();
+		std::string source = loadKernelSource("../kernels/main.cl");
+		buildProgram(program, source, env);
+	}
+	catch (const std::exception& e) {
+		std::cerr << "OpenCL Initialization Error. " << std::endl;
+		return 1;
+	}
+
+
     // silence irritating OpenCV warnings
 	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
@@ -49,30 +62,26 @@ int main() {
 
 	// TIME_IT(label, expr) – megmeri expr futasi idejet es kiirja ms-ben
 
-	const int radius = 3; // 7x7-es ablak
+	//const int radius = 3; // 7x7-es ablak
 
-	cv::Mat noisyImage   = TIME_IT("Salt & Pepper", addSaltAndPepperNoise(image, 0.1));
+	//cv::Mat noisyImage   = TIME_IT("Salt & Pepper", addSaltAndPepperNoise(image, 0.1));
 
-	std::cout << "\n--- Filter idok (radius=" << radius << ") ---\n";
-	cv::Mat medianResult = TIME_IT("Median CPU", medianFilterCPU(noisyImage, radius));
+	//std::cout << "\n--- Filter idok (radius=" << radius << ") ---\n";
+	//cv::Mat medianResult = TIME_IT("Median CPU", medianFilterCPU(noisyImage, radius));
 
-	cv::imshow("Original",                  image);
+	/*cv::imshow("Original",                  image);
 	cv::imshow("Noisy (10% salt & pepper)", noisyImage);
-	cv::imshow("Median filter (radius=3)",  medianResult);
-	image = cv::imread("../assets/duck.jpg", cv::IMREAD_COLOR);
-
-    if(image.empty()) {
-        std::cerr << "Could not read the image" << std::endl;
-        return 1;
-	}
+	cv::imshow("Median filter (radius=3)",  medianResult);*/
 
 	cv::resize(image, image, cv::Size(512, 512*image.rows/image.cols));
 	cv::Mat og = image.clone();
-    double ms = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
+	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
+    double ms = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, generateGaussianKernel(2,5), image.rows, image.cols, image.channels(), 1); });
+    //double ms = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
     std::cout << "Gaussian blur took " << ms << "ms" << std::endl;
 
     // Display images
-	cv::vconcat(og, image, image);
+	cv::vconcat(og, result, image);
 	imshow("Duck Blurred", image);
 	cv::waitKey(0);
 
