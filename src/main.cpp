@@ -50,6 +50,13 @@ double measure_performance(Func&& func) {
     return std::chrono::duration<double, std::milli>(end - start).count();
 }
 
+cv::Mat addLabel(const cv::Mat& img, const std::string& label, int w = 380) {
+    cv::Mat out;
+    cv::resize(img, out, cv::Size(w, w * img.rows / img.cols));
+    cv::putText(out, label, cv::Point(6, 22), cv::FONT_HERSHEY_SIMPLEX, 0.65, cv::Scalar(0, 255, 0), 2);
+    return out;
+}
+
 int main() 
 {
 		// check for device support
@@ -114,11 +121,19 @@ int main()
         return result;
     }());
 
-	cv::imshow("Original",                  image);
-	cv::imshow("Noisy (10% salt & pepper)", noisyImage);
-	cv::imshow("Median filter CPU",         medianResult);
-	cv::imshow("Median filter GPU Naive",   medianResultGPU);
-	cv::imshow("Median filter GPU Shared",  medianResultGPUShared);
+	cv::Mat l_orig   = addLabel(image, "Original");
+	cv::Mat l_noisy  = addLabel(noisyImage, "Noisy");
+	cv::Mat l_cpu    = addLabel(medianResult, "CPU");
+	cv::Mat l_naive  = addLabel(medianResultGPU, "GPU Naive");
+	cv::Mat l_shared = addLabel(medianResultGPUShared, "GPU Shared");
+	cv::Mat l_blank  = cv::Mat::zeros(l_orig.rows, l_orig.cols, l_orig.type());
+
+	cv::Mat row1, row2, grid;
+	cv::hconcat(std::vector<cv::Mat>{l_orig, l_noisy, l_cpu}, row1);
+	cv::hconcat(std::vector<cv::Mat>{l_naive, l_shared, l_blank}, row2);
+	cv::vconcat(row1, row2, grid);
+
+	cv::imshow("Median Filter Comparison", grid);
 	cv::Mat blurInput = image.clone();
 	cv::resize(blurInput, blurInput, cv::Size(512, 512 * blurInput.rows / blurInput.cols));
 	cv::Mat og = blurInput.clone();
