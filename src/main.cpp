@@ -119,21 +119,14 @@ int main()
 	cv::imshow("Median filter CPU",         medianResult);
 	cv::imshow("Median filter GPU Naive",   medianResultGPU);
 	cv::imshow("Median filter GPU Shared",  medianResultGPUShared);
-	image = cv::imread("../assets/duck.jpg", cv::IMREAD_COLOR);
+	cv::Mat blurInput = image.clone();
+	cv::resize(blurInput, blurInput, cv::Size(512, 512 * blurInput.rows / blurInput.cols));
+	cv::Mat og = blurInput.clone();
+    double ms = measure_performance([&]() { gaussianBlurCPU(blurInput, generateGaussianKernel(2, 5)); });
+    std::cout << "Gaussian blur took " << ms << "ms\n";
 
-    if(image.empty()) {
-        std::cerr << "Could not read the image" << std::endl;
-        return 1;
-	}
-
-	cv::resize(image, image, cv::Size(512, 512*image.rows/image.cols));
-	cv::Mat og = image.clone();
-    double ms = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
-    std::cout << "Gaussian blur took " << ms << "ms" << std::endl;
-
-    // Display images
-	cv::vconcat(og, image, image);
-	imshow("Duck Blurred", image);
+    cv::vconcat(og, blurInput, blurInput);
+    cv::imshow("Gaussian Blur", blurInput);
 	cv::waitKey(0);
 
 	return 0;
