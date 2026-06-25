@@ -87,7 +87,13 @@ int main()
 		return 1;
 	}
 
-	const int radius = 15; // 7x7-es ablak
+	int radius;
+	std::cout << "Radius (1-15): ";
+	std::cin >> radius;
+	if (radius < 1 || radius > 15) {
+		std::cerr << "Invalid radius\n";
+		return 1;
+	}
 
 	cv::Mat noisyImage   = TIME_IT("Salt & Pepper", addSaltAndPepperNoise(image, 0.1));
 
