@@ -4,8 +4,33 @@
 #include <fstream>
 #include <vector>
 #include <chrono>
+#include <filesystem>
 #include "cvutils.hpp"
 #include "clutils.hpp"
+namespace fs = std::filesystem;
+
+std::string selectImage(const std::string& dir) {
+    std::vector<std::string> files;
+    for (auto& f : fs::directory_iterator(dir)) {
+        auto ext = f.path().extension().string();
+        if (ext == ".jpg" || ext == ".png" || ext == ".jpeg")
+            files.push_back(f.path().string());
+    }
+
+    if (files.empty()) {
+        std::cerr << "No images found\n";
+        return "";
+    }
+
+    std::cout << "Pick an image:\n";
+    for (int i = 0; i < files.size(); i++)
+        std::cout << i << ": " << fs::path(files[i]).filename().string() << "\n";
+
+    int n;
+    std::cin >> n;
+    if (n < 0 || n >= files.size()) n = 0;
+    return files[n];
+}
 
 #define TIME_IT(label, expr) \
 		[&]() { \
@@ -54,7 +79,9 @@ int main()
     // silence irritating OpenCV warnings
 	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
 
-	cv::Mat image = cv::imread("../Assets/duck.jpg", cv::IMREAD_COLOR);
+	std::string imagePath = selectImage("../Assets");
+	if (imagePath.empty()) return 1;
+	cv::Mat image = cv::imread(imagePath, cv::IMREAD_COLOR);
 	if (image.empty()) {
 		std::cerr << "Failed to load image\n";
 		return 1;
