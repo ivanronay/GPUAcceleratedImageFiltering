@@ -42,10 +42,10 @@ inline std::string loadKernelSource(const std::string& path) {
     return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
-void buildProgram(cl::Program& program, const std::string& source, const OpenCLEnv& env) {
+void buildProgram(cl::Program& program, const std::string& source, const OpenCLEnv& env, const char* options = "-cl-std=CL3.0") {
     program = cl::Program(env.context, source);
     try {
-        program.build({ env.device });
+        program.build({ env.device }, options);
     } catch (const cl::Error&) {
         std::cerr << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(env.device) << std::endl;
         throw;
@@ -79,6 +79,12 @@ void runImageFilter2D(cl::Program& program, const std::string& function_name, Op
     env.queue.enqueueReadBuffer(output, CL_TRUE, 0, size, output_data);
 }
 
+inline size_t roundUp(size_t group_size, size_t global_size) {
+    size_t r = global_size % group_size;
+    if (r == 0) return global_size;
+    return global_size + group_size - r;
+}
+
 // Runs a 2D image processing kernel using local/shared memory optimization
 inline void runImageFilter2DShared(cl::Program& program, const std::string& function_name, OpenCLEnv& env, 
                             unsigned char* input_data, unsigned char* output_data, 
@@ -91,10 +97,17 @@ inline void runImageFilter2DShared(cl::Program& program, const std::string& func
 
     cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int, int, int> kernel(program, function_name);
 
-    cl::NDRange global_size(width, height);
+    size_t gx = roundUp(local_w, width);
+    size_t gy = roundUp(local_h, height);
+
+    cl::NDRange global_size(gx, gy);
     cl::NDRange local_size(local_w, local_h);
 
-    kernel(cl::EnqueueArgs(env.queue, global_size, local_size), input, output, width, height, channels, radius);
-
-    env.queue.enqueueReadBuffer(output, CL_TRUE, 0, size, output_data);
+    try {
+        kernel(cl::EnqueueArgs(env.queue, global_size, local_size), input, output, width, height, channels, radius);
+        env.queue.enqueueReadBuffer(output, CL_TRUE, 0, size, output_data);
+    } catch (const cl::Error&) {
+        std::cerr << "Error on runImageFilter2DShared";
+        throw;
+    }
 }
