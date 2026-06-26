@@ -78,8 +78,10 @@ int main() {
 	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
 	int radius = 2;
     double msGPU = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, generateGaussianKernel(radius,5), image.cols, image.rows, image.channels(), radius); });
+    double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(program, env, image.data, result.data, generateGaussianKernel(radius,5), image.cols, image.rows, image.channels(), radius); });
     double msCPU = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
     std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
+    std::cout << "Gaussian blur (GPU shared) took " << msGPU2 << "ms" << std::endl;
     std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
 
     // Display images

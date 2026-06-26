@@ -72,3 +72,49 @@ void runGaussianBlurGPU(cl::Program& program, OpenCLEnv& env,
     vertical(cl::EnqueueArgs(env.queue, cl::NDRange(width, height)), temp, output, kernelBuffer, width, height, channels, radius);
     env.queue.enqueueReadBuffer(output, CL_TRUE, 0, ucharsize, output_data);
 }
+
+void runGaussianBlurGPUshared(cl::Program& program, OpenCLEnv& env,
+    unsigned char* input_data, unsigned char* output_data, std::vector<float>& kernel,
+    int width, int height, int channels, int radius) {
+
+    size_t ucharsize = width * height * channels * sizeof(unsigned char);
+    size_t floatSize = width * height * channels * sizeof(float);
+
+    cl::Buffer input(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, ucharsize, input_data);
+    cl::Buffer temp(env.context, CL_MEM_READ_WRITE, floatSize);
+    cl::Buffer output(env.context, CL_MEM_WRITE_ONLY, ucharsize);
+    cl::Buffer kernelBuffer(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, kernel.size() * sizeof(float), kernel.data());
+
+	size_t localSize = 16; // Example local size, adjust as needed
+	size_t globalSizeX = ((width + localSize - 1) / localSize) * localSize;
+	size_t globalSizeY = ((height + localSize - 1) / localSize) * localSize;
+	size_t ScracthSizeX = (localSize + 2 * radius) * localSize * channels *sizeof(unsigned char);
+	size_t ScracthSizeY = (localSize + 2 * radius) * localSize * channels * sizeof(float);
+
+	cl::NDRange global(globalSizeX, globalSizeY);
+	cl::NDRange local(localSize, localSize);
+
+    cl::Kernel horizontal(program, "gaussian_blur_horizontal_shared");
+    horizontal.setArg(0,input);
+	horizontal.setArg(1, temp);
+	horizontal.setArg(2, kernelBuffer);
+	horizontal.setArg(3, cl::Local(ScracthSizeX));
+	horizontal.setArg(4, width);
+	horizontal.setArg(5, height);
+	horizontal.setArg(6, channels);
+	horizontal.setArg(7, radius);
+    env.queue.enqueueNDRangeKernel(horizontal, cl::NullRange, global, local);
+
+    cl::Kernel vertical(program, "gaussian_blur_vertical_shared");
+	vertical.setArg(0, temp);
+	vertical.setArg(1, output);
+	vertical.setArg(2, kernelBuffer);
+	vertical.setArg(3, cl::Local(ScracthSizeY));
+	vertical.setArg(4, width);
+	vertical.setArg(5, height);
+	vertical.setArg(6, channels);
+	vertical.setArg(7, radius);
+	env.queue.enqueueNDRangeKernel(vertical, cl::NullRange, global, local);
+
+    env.queue.enqueueReadBuffer(output, CL_TRUE, 0, ucharsize, output_data);
+}
