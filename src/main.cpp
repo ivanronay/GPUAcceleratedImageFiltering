@@ -59,35 +59,53 @@ int main() {
 		std::cerr << "Failed to load image\n";
 		return 1;
 	}
+	cv::resize(image, image, cv::Size(1024, 1024*image.rows/image.cols));
 
-	// TIME_IT(label, expr) – megmeri expr futasi idejet es kiirja ms-ben
-
-	//const int radius = 3; // 7x7-es ablak
-
-	//cv::Mat noisyImage   = TIME_IT("Salt & Pepper", addSaltAndPepperNoise(image, 0.1));
-
-	//std::cout << "\n--- Filter idok (radius=" << radius << ") ---\n";
-	//cv::Mat medianResult = TIME_IT("Median CPU", medianFilterCPU(noisyImage, radius));
-
-	/*cv::imshow("Original",                  image);
-	cv::imshow("Noisy (10% salt & pepper)", noisyImage);
-	cv::imshow("Median filter (radius=3)",  medianResult);*/
-
-	cv::resize(image, image, cv::Size(512, 512*image.rows/image.cols));
-	cv::Mat og = image.clone();
-	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
+	std::string line;
 	int radius = 2;
-    double msGPU = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, generateGaussianKernel(radius,5), image.cols, image.rows, image.channels(), radius); });
-    double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(program, env, image.data, result.data, generateGaussianKernel(radius,5), image.cols, image.rows, image.channels(), radius); });
-    double msCPU = measure_performance([&]() {gaussianBlurCPU(image, generateGaussianKernel(2, 5)); });
-    std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
-    std::cout << "Gaussian blur (GPU shared) took " << msGPU2 << "ms" << std::endl;
-    std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
+	int sigma = 5;
+	auto gkernel = generateGaussianKernel(radius, sigma);
+	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
 
-    // Display images
-	cv::vconcat(og, result, image);
-	imshow("Duck Blurred", image);
-	cv::waitKey(0);
+	while (true) {
+		if(!std::getline(std::cin, line)) {
+			continue;
+		}
+
+		if(line == "e") {
+			break;
+		}
+		else if (line == "og") {
+			cv::imshow("Display", image);
+			cv::waitKey(1);
+		}
+		else if(line == "gb") {
+			double msCPU = measure_performance([&]() {gaussianBlurCPU(image, result, gkernel); });
+			double msGPU = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+			double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+			std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
+			std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
+			std::cout << "Gaussian blur (GPU shared) took " << msGPU2 << "ms" << std::endl;
+
+			cv::imshow("Display", result);
+			cv::waitKey(1);
+		}
+		else if (line == "mf") {
+			double msCPU = measure_performance([&]() {result = medianFilterCPU(image, radius);});
+			//double msGPU = measure_performance([&]() {runMedianFilterGPU(program, env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
+			//double msGPU2 = measure_performance([&]() {runMedianFilterGPUshared(program, env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
+			std::cout << "Median filter (CPU) took " << msCPU << "ms" << std::endl;
+			std::cout << "Median filter (GPU) took " << "N/A" << "ms" << std::endl;
+			std::cout << "Median filter (GPU shared) took " << "N/A" << "ms" << std::endl;
+
+			cv::imshow("Display", result);
+			cv::waitKey(1);
+		}
+		else {
+			std::cout << "Invalid option!" << std::endl;
+		}
+	}
+
 
 	return 0;
 }
