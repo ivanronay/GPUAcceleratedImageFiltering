@@ -9,6 +9,7 @@ find_package(OpenCL REQUIRED)
 find_package(OpenCV REQUIRED)
 
 add_executable(ImageFilteringMain
+  include/clutils.hpp
   include/cvutils.hpp
   src/main.cpp
   kernels/main.cl
