@@ -61,48 +61,52 @@ int main() {
 	}
 	cv::resize(image, image, cv::Size(1024, 1024*image.rows/image.cols));
 
-	std::string line;
 	int radius = 2;
 	int sigma = 5;
-	auto gkernel = generateGaussianKernel(radius, sigma);
+	std::vector<float> gkernel = generateGaussianKernel(radius,sigma);
 	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
 
+	cv::imshow("Display", image);
 	while (true) {
-		if(!std::getline(std::cin, line)) {
-			continue;
-		}
+		int key = cv::waitKey(0);
 
-		if(line == "e") {
+		if(key == 27 || key == 'q') {
 			break;
 		}
-		else if (line == "og") {
+		else if (key == 'o') {
 			cv::imshow("Display", image);
-			cv::waitKey(1);
 		}
-		else if(line == "gb") {
+		else if(key == 'g') {
 			double msCPU = measure_performance([&]() {gaussianBlurCPU(image, result, gkernel); });
 			double msGPU = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
 			double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+			std::cout << "=====================================" << std::endl;
 			std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
 			std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
 			std::cout << "Gaussian blur (GPU shared) took " << msGPU2 << "ms" << std::endl;
+			std::cout << "=====================================" << std::endl << std::endl;
 
 			cv::imshow("Display", result);
-			cv::waitKey(1);
 		}
-		else if (line == "mf") {
+		else if (key == 'm') {
 			double msCPU = measure_performance([&]() {result = medianFilterCPU(image, radius);});
 			//double msGPU = measure_performance([&]() {runMedianFilterGPU(program, env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
 			//double msGPU2 = measure_performance([&]() {runMedianFilterGPUshared(program, env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
+			std::cout << "=====================================" << std::endl;
 			std::cout << "Median filter (CPU) took " << msCPU << "ms" << std::endl;
 			std::cout << "Median filter (GPU) took " << "N/A" << "ms" << std::endl;
 			std::cout << "Median filter (GPU shared) took " << "N/A" << "ms" << std::endl;
+			std::cout << "=====================================" << std::endl << std::endl;
 
 			cv::imshow("Display", result);
-			cv::waitKey(1);
 		}
-		else {
-			std::cout << "Invalid option!" << std::endl;
+		else if (key == '+') {
+			radius = std::min(10, radius + 1);
+			std::cout << "Radius increased to " << radius << std::endl;
+		}
+		else if (key == '-') {
+			radius = std::max(1, radius - 1);
+			std::cout << "Radius decreased to " << radius << std::endl;
 		}
 	}
 
