@@ -39,8 +39,9 @@ unsigned char getMedianHistogram(
 }
 
 // autoselecting between the two medians
+// switch at r>3: above 7x7 (49 elements) bubblesort becomes too slow
 unsigned char getMedianAuto(unsigned char* window, int windowSize, int radius) {
-    if (radius > 4)
+    if (radius > 3)
         return getMedianHistogram(window, windowSize);
     else
         return getMedian(window, windowSize);

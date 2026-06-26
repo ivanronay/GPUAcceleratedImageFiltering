@@ -59,7 +59,7 @@ int main() {
 		std::string source2 = loadKernelSource("../kernels/gaussian.cl");
 
 		buildProgram(program, source, env);
-		buildProgram(program, source2, env);
+		buildProgram(gaussianProgram, source2, env);
 	}
 	catch (const std::exception& e) {
 		std::cerr << "OpenCL Initialization Error. " << std::endl;
@@ -96,14 +96,19 @@ int main() {
 			  << "\t +: Increase radius" << std::endl \
 			  << "\t -: Decrease radius" << std::endl \
 			  << "\t q or ESC: Quit" << std::endl
-		      << "\t u: Toggle unoptimized versions" << std::endl;
+		      << "\t u: Toggle unoptimized versions" << std::endl
+		      << "\t b: Benchmark median filter (R 1-15) -> CSV" << std::endl
+		      << "\t n: Benchmark gaussian blur (R 1-15) -> CSV" << std::endl;
 	std::cout << "=====================================" << std::endl << std::endl;
 
 	cv::imshow("Display", image);
 	
 	// interactive event loop
 	while (true) {
-		int key = cv::waitKey(0);
+		int key = cv::waitKey(0) & 0xFF;
+		
+		// Uncomment this if you want to see what keycode OpenCV is receiving:
+		std::cout << "Key pressed: " << key << " (char: " << (char)key << ")" << std::endl;
 
 		if(key == 27 || key == 'q') {
 			break;
@@ -178,6 +183,44 @@ int main() {
 		else if (key == 'u') {
 			useUnOptimized = !useUnOptimized;
 			std::cout << "Use unoptimized versions: " << (useUnOptimized ? "ON" : "OFF") << std::endl;
+		}
+		else if (key == 'b') {
+			std::cout << "Running benchmark (Radius 1 to 15)..." << std::endl;
+			std::ofstream csv("../benchmark_results.csv");
+			if (!csv.is_open()) {
+				std::cerr << "Failed to open CSV for writing!" << std::endl;
+			} else {
+				csv << "Radius,CPU_ms,GPU_Naive_ms,GPU_Shared_ms\n";
+				cv::Mat noisyBench = addSaltAndPepperNoise(image, 0.1);
+				for (int r = 1; r <= 15; ++r) {
+					std::cout << "  r=" << r << "..." << std::endl;
+					double msCPU    = measure_performance([&]() { medianFilterCPU(noisyBench, r); });
+					double msGPU    = measure_performance([&]() { runImageFilter2D(program, "medianFilter", env, noisyBench.data, result.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
+					double msShared = measure_performance([&]() { runImageFilter2DShared(program, "medianFilterShared", env, noisyBench.data, result2.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
+					csv << r << "," << msCPU << "," << msGPU << "," << msShared << "\n";
+				}
+				csv.close();
+				std::cout << "Done. Saved to ../median_benchmark.csv" << std::endl;
+			}
+		}
+		else if (key == 'n') {
+			std::cout << "Running Gaussian benchmark (Radius 1 to 15)..." << std::endl;
+			std::ofstream csv("../gaussian_benchmark.csv");
+			if (!csv.is_open()) {
+				std::cerr << "Failed to open CSV for writing!" << std::endl;
+			} else {
+				csv << "Radius,CPU_ms,GPU_Naive_ms,GPU_Shared_ms\n";
+				for (int r = 1; r <= 15; ++r) {
+					std::cout << "  r=" << r << "..." << std::endl;
+					std::vector<float> gk = generateGaussianKernel(r, (float)r / 2.0f + 0.5f);
+					double msCPU    = measure_performance([&]() { gaussianBlurCPU(image, result, gk); });
+					double msGPU    = measure_performance([&]() { runGaussianBlurGPU(gaussianProgram, env, image.data, result.data, gk, image.cols, image.rows, image.channels(), r); });
+					double msShared = measure_performance([&]() { runGaussianBlurGPUshared(gaussianProgram, env, image.data, result2.data, gk, image.cols, image.rows, image.channels(), r); });
+					csv << r << "," << msCPU << "," << msGPU << "," << msShared << "\n";
+				}
+				csv.close();
+				std::cout << "Done. Saved to ../gaussian_benchmark.csv" << std::endl;
+			}
 		}
 	}
 	return 0;
