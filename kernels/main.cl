@@ -88,14 +88,16 @@ __kernel void gaussian_blur_horizontal_shared(
     if(lx < radius){
         int clampedindex = clamp(gx * lsize + lx - radius, 0, width - 1);
         for(int c = 0; c < channels; ++c)
-            scratch[(ly * tile_width + lx)*channels + c] = input[(y*width+clampedindex)*channels + c];
+            scratch[(ly * tile_width + lx)*channels + c] = 
+            (y < height) ? input[(y*width+clampedindex)*channels + c] : 0;
     }
 
     // copy to right halo, clamp if necessary: shared := [h,h,p,p...p,p,h,h]
     if(lx > lsize - 1 - radius && lx < lsize){
         int clampedindex = clamp(gx * lsize + lx + radius, 0, width - 1);
         for(int c = 0; c < channels; ++c)
-            scratch[(ly * tile_width + lx + 2*radius)*channels + c] = input[(y*width+clampedindex)*channels + c];
+            scratch[(ly * tile_width + lx + 2*radius)*channels + c] =
+            (y < height) ? input[(y*width+clampedindex)*channels + c] : 0;
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -145,14 +147,16 @@ __kernel void gaussian_blur_vertical_shared(
     if(ly < radius){
         int clampedindex = clamp(gy * lsize + ly - radius, 0, height - 1);
         for(int c = 0; c < channels; ++c)
-            scratch[(ly * tile_width + lx)*channels + c] = input[(clampedindex*width+x)*channels + c];
+            scratch[(ly * tile_width + lx)*channels + c] =
+            (x < width) ? input[(clampedindex*width+x)*channels + c] : 0;
     }
 
     // copy to right halo, clamp if necessary: shared := [h,h,p,p...p,p,h,h]
     if(ly > lsize - 1 - radius && ly < lsize){
         int clampedindex = clamp(gy * lsize + ly + radius, 0, height - 1);
         for(int c = 0; c < channels; ++c)
-            scratch[((ly + 2*radius) * tile_width + lx)*channels + c] = input[(clampedindex*width+x)*channels + c];
+            scratch[((ly + 2*radius) * tile_width + lx)*channels + c] =
+            (x < width) ? input[(clampedindex*width+x)*channels + c] : 0;
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
