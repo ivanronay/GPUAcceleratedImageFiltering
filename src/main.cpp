@@ -50,10 +50,14 @@ cv::Mat addLabel(const cv::Mat& img, const std::string& label, int w = 380) {
 int main() {
 	OpenCLEnv env;
 	cl::Program program;
+	cl::Program gaussianProgram;
 	try {
 		env = initOpenCL();
 		std::string source = loadKernelSource("../kernels/main.cl");
+		std::string source2 = loadKernelSource("../kernels/gaussian.cl");
+
 		buildProgram(program, source, env);
+		buildProgram(program, source2, env);
 	}
 	catch (const std::exception& e) {
 		std::cerr << "OpenCL Initialization Error. " << std::endl;
@@ -107,11 +111,11 @@ int main() {
 			std::cout << "=====================================" << std::endl;
 			if (useUnOptimized) {
 				double msCPU = measure_performance([&]() {gaussianBlurCPU(image, result, gkernel); });
-				double msGPU = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+				double msGPU = measure_performance([&]() {runGaussianBlurGPU(gaussianProgram, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
 				std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
 				std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
 			}
-			double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+			double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(gaussianProgram, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
 			std::cout << "Gaussian blur (GPU shared) took " << msGPU2 << "ms" << std::endl;
 			std::cout << "=====================================" << std::endl << std::endl;
 			cv::imshow("Display", result);

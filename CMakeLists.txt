@@ -13,6 +13,7 @@ add_executable(ImageFilteringMain
   include/cvutils.hpp
   src/main.cpp
   kernels/main.cl
+  kernels/gaussian.cl
 )
 
 target_include_directories(ImageFilteringMain PRIVATE
