@@ -1,11 +1,11 @@
 #define MAX_RAD 15
 #define MAX_WINDOW_SIZE ((2 * MAX_RAD + 1) * (2 * MAX_RAD + 1))
 
-uchar getMedian(uchar* window, int size) {
+unsigned char getMedian(unsigned char* window, int size) {
     for (int i = 0; i < size - 1; ++i) {
         for (int j = 0; j < size - i - 1; ++j) {
             if (window[j] > window[j + 1]) {
-                uchar temp = window[j];
+                unsigned char temp = window[j];
                 window[j] = window[j + 1];
                 window[j + 1] = temp;
             }
@@ -15,8 +15,8 @@ uchar getMedian(uchar* window, int size) {
 }
 
 
-uchar getMedianHistogram(
-    uchar* window,
+unsigned char getMedianHistogram(
+    unsigned char* window,
     int size)
 {
     int hist[256] = {0};
@@ -31,7 +31,7 @@ uchar getMedianHistogram(
         count += hist[value];
         if (count > target)
         {
-            return (uchar)value;
+            return (unsigned char)value;
         }
     }
 
@@ -39,7 +39,7 @@ uchar getMedianHistogram(
 }
 
 // autoselecting between the two medians
-uchar getMedianAuto(uchar* window, int windowSize, int radius) {
+unsigned char getMedianAuto(unsigned char* window, int windowSize, int radius) {
     if (radius > 4)
         return getMedianHistogram(window, windowSize);
     else
@@ -48,8 +48,8 @@ uchar getMedianAuto(uchar* window, int windowSize, int radius) {
 
 // Naive median filter kernel
 __kernel void medianFilter(
-    __global const uchar* input,
-    __global uchar* output,
+    __global const unsigned char* input,
+    __global unsigned char* output,
     const int width,
     const int height,
     const int channels,
@@ -64,7 +64,7 @@ __kernel void medianFilter(
 
     int windowSize = (2 * radius + 1) * (2 * radius + 1);
     
-    uchar window[MAX_WINDOW_SIZE];
+    unsigned char window[MAX_WINDOW_SIZE];
 
     for (int c = 0; c < channels; ++c) {
         int idx = 0;
@@ -90,8 +90,8 @@ __kernel void medianFilter(
 #define WG_H 16
 
 __kernel void medianFilterShared(
-    __global const uchar* input,
-    __global uchar* output,
+    __global const unsigned char* input,
+    __global unsigned char* output,
     const int width,
     const int height,
     const int channels,
@@ -103,7 +103,7 @@ __kernel void medianFilterShared(
     int lx = get_local_id(0);
     int ly = get_local_id(1);
 
-    __local uchar local_mem[(WG_W + 2 * MAX_RAD) * (WG_H + 2 * MAX_RAD)];
+    __local unsigned char local_mem[(WG_W + 2 * MAX_RAD) * (WG_H + 2 * MAX_RAD)];
     
     int local_width = get_local_size(0) + 2 * radius;
     int total_elements = local_width * (get_local_size(1) + 2 * radius); 
@@ -136,7 +136,7 @@ __kernel void medianFilterShared(
         
         if (x < width && y < height) {
             int windowSize = (2 * radius + 1) * (2 * radius + 1);
-            uchar window[MAX_WINDOW_SIZE]; 
+            unsigned char window[MAX_WINDOW_SIZE]; 
             
             int idx = 0;
             // double loop on local tile
