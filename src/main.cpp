@@ -102,10 +102,12 @@ int main() {
 		}
 		else if (key == '+') {
 			radius = std::min(10, radius + 1);
+			gkernel = generateGaussianKernel(radius, sigma);
 			std::cout << "Radius increased to " << radius << std::endl;
 		}
 		else if (key == '-') {
 			radius = std::max(1, radius - 1);
+			gkernel = generateGaussianKernel(radius, sigma);
 			std::cout << "Radius decreased to " << radius << std::endl;
 		}
 	}
