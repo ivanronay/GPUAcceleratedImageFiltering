@@ -17,11 +17,12 @@ std::vector<float> generateGaussianKernel(int radius, float sigma) {
 }
 
 // Applies a gaussian blur to src using the given kernel
-void gaussianBlurCPU(cv::Mat& src, std::vector<float> kernel) {
+void gaussianBlurCPU(cv::Mat& src, cv::Mat& out, std::vector<float> kernel) {
     int W = src.cols, H = src.rows, C = src.channels();
 	int kernelRadius = kernel.size() / 2;
 	std::vector temp = std::vector<float>(W * H * C);
 	auto inputdata = src.data;
+	auto outputdata = out.data;
 
     // gaussian blur can be applied separately first row-wise then column-wise
     for(int i = 0; i < H; ++i) {
@@ -51,7 +52,7 @@ void gaussianBlurCPU(cv::Mat& src, std::vector<float> kernel) {
                 }
             }
             for (int c = 0; c < C; ++c) {
-                inputdata[(i * W + j) * C + c] = static_cast<unsigned char>(sums[c]);
+                outputdata[(i * W + j) * C + c] = static_cast<unsigned char>(sums[c]);
             }
         }
     }

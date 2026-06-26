@@ -32,16 +32,6 @@ std::string selectImage(const std::string& dir) {
     return files[n];
 }
 
-#define TIME_IT(label, expr) \
-		[&]() { \
-			double _t = cv::getTickCount(); \
-			auto _r = (expr); \
-			std::cout << (label) << ": " \
-			          << (cv::getTickCount() - _t) / cv::getTickFrequency() * 1000.0 \
-			          << " ms\n"; \
-			return _r; \
-		}()
-
 template <typename Func>
 double measure_performance(Func&& func) {
     auto start = std::chrono::high_resolution_clock::now();
@@ -57,31 +47,19 @@ cv::Mat addLabel(const cv::Mat& img, const std::string& label, int w = 380) {
     return out;
 }
 
-int main() 
-{
-		// check for device support
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    for (auto& platform : platforms) {
-        std::cout << "Platform: " << platform.getInfo<CL_PLATFORM_NAME>() << std::endl;
-        std::vector<cl::Device> devices;
-        platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
-        for (auto& device : devices) {
-            std::cout << "  Device: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
-        }
-    }
-
-    // Initialize OpenCL using the helper
-    OpenCLEnv env;
-    cl::Program program;
-    try {
-        env = initOpenCL();
-        std::string source = loadKernelSource("../kernels/main.cl");
-        buildProgram(program, source, env);
-    } catch (const std::exception& e) {
-        std::cerr << "OpenCL Initialization Error. " << std::endl;
-        return 1;
-    }
+int main() {
+	OpenCLEnv env;
+	cl::Program program;
+	try {
+		env = initOpenCL();
+		std::string source = loadKernelSource("../kernels/main.cl");
+		buildProgram(program, source, env);
+	}
+	catch (const std::exception& e) {
+		std::cerr << "OpenCL Initialization Error. " << std::endl;
+		std::cerr << e.what() << std::endl;
+		return 1;
+	}
 
     // silence irritating OpenCV warnings
 	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
@@ -93,56 +71,106 @@ int main()
 		std::cerr << "Failed to load image\n";
 		return 1;
 	}
+	cv::resize(image, image, cv::Size(1024, 1024*image.rows/image.cols));
 
-	int radius;
-	std::cout << "Radius (1-15): ";
-	std::cin >> radius;
-	if (radius < 1 || radius > 15) {
-		std::cerr << "Invalid radius\n";
-		return 1;
+	int radius = 2;
+	int sigma = 5;
+	bool useUnOptimized = false;
+	std::vector<float> gkernel = generateGaussianKernel(radius,sigma);
+	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
+	cv::Mat result2 = cv::Mat::zeros(image.rows, image.cols, image.type());
+	cv::Mat noisyImage;
+	cv::Mat medianResult;
+
+	std::cout << "=====================================" << std::endl;
+	std::cout << "Press" \
+		      << "\t g: Gaussian Blur" << std::endl \
+			  << "\t m: Median Filter" << std::endl \
+			  << "\t o: Show original image" << std::endl \
+			  << "\t +: Increase radius" << std::endl \
+			  << "\t -: Decrease radius" << std::endl \
+			  << "\t q or ESC: Quit" << std::endl
+		      << "\t u: Toggle unoptimized versions" << std::endl;
+	std::cout << "=====================================" << std::endl << std::endl;
+
+	cv::imshow("Display", image);
+	while (true) {
+		int key = cv::waitKey(0);
+
+		if(key == 27 || key == 'q') {
+			break;
+		}
+		else if (key == 'o') {
+			cv::imshow("Display", image);
+		}
+		else if(key == 'g') {
+			std::cout << "=====================================" << std::endl;
+			if (useUnOptimized) {
+				double msCPU = measure_performance([&]() {gaussianBlurCPU(image, result, gkernel); });
+				double msGPU = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+				std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
+				std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
+			}
+			double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+			std::cout << "Gaussian blur (GPU shared) took " << msGPU2 << "ms" << std::endl;
+			std::cout << "=====================================" << std::endl << std::endl;
+			cv::imshow("Display", result);
+		}
+		else if (key == 'm') {
+			std::cout << "=====================================" << std::endl;
+			if (useUnOptimized) {
+				double msCPU = measure_performance([&]() {result = medianFilterCPU(image, radius);});
+				double msGPU = measure_performance([&]() {runImageFilter2D(program, "medianFilter", env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
+				std::cout << "Median filter (CPU) took " << msCPU << "ms" << std::endl;
+				std::cout << "Median filter (GPU) took " << msGPU << "ms" << std::endl;
+			}
+			double msGPU2 = measure_performance([&]() {runImageFilter2DShared(program,"medianFilterShared", env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
+			std::cout << "Median filter (GPU shared) took " << msGPU2 << "ms" << std::endl;
+			std::cout << "=====================================" << std::endl << std::endl;
+
+			cv::imshow("Display", result);
+		}
+		else if (key == 'p') {
+			double SPms = measure_performance([&]() {noisyImage = addSaltAndPepperNoise(image, 0.1); });
+			double CPUms = measure_performance([&]() {medianResult = medianFilterCPU(noisyImage, radius); });
+			double GPUms = measure_performance([&]() {
+				runImageFilter2D(program, "medianFilter", env, noisyImage.data, result.data,
+					noisyImage.cols, noisyImage.rows, noisyImage.channels(), radius);
+				});
+
+			double GPU2ms = measure_performance([&]() {
+				runImageFilter2DShared(program, "medianFilterShared", env, noisyImage.data, result2.data,
+					noisyImage.cols, noisyImage.rows, noisyImage.channels(), radius);
+				});
+
+			cv::Mat l_orig = addLabel(image, "Original");
+			cv::Mat l_noisy = addLabel(noisyImage, "Noisy");
+			cv::Mat l_cpu = addLabel(medianResult, "CPU");
+			cv::Mat l_naive = addLabel(result, "GPU Naive");
+			cv::Mat l_shared = addLabel(result2, "GPU Shared");
+			cv::Mat l_blank = cv::Mat::zeros(l_orig.rows, l_orig.cols, l_orig.type());
+
+			cv::Mat row1, row2, grid;
+			cv::hconcat(std::vector<cv::Mat>{l_orig, l_noisy, l_cpu}, row1);
+			cv::hconcat(std::vector<cv::Mat>{l_naive, l_shared, l_blank}, row2);
+			cv::vconcat(row1, row2, grid);
+
+			cv::imshow("Display", grid);
+		}
+		else if (key == '+') {
+			radius = std::min(15, radius + 1);
+			gkernel = generateGaussianKernel(radius, sigma);
+			std::cout << "Radius increased to " << radius << std::endl;
+		}
+		else if (key == '-') {
+			radius = std::max(1, radius - 1);
+			gkernel = generateGaussianKernel(radius, sigma);
+			std::cout << "Radius decreased to " << radius << std::endl;
+		}
+		else if (key == 'u') {
+			useUnOptimized = !useUnOptimized;
+			std::cout << "Use unoptimized versions: " << (useUnOptimized ? "ON" : "OFF") << std::endl;
+		}
 	}
-
-	cv::Mat noisyImage   = TIME_IT("Salt & Pepper", addSaltAndPepperNoise(image, 0.1));
-
-	std::cout << "\n--- Filter idok (radius=" << radius << ") ---\n";
-	cv::Mat medianResult = TIME_IT("Median CPU", medianFilterCPU(noisyImage, radius));
-
-    cv::Mat medianResultGPU = TIME_IT("Median GPU (Naive)", [&]() {
-        cv::Mat result = cv::Mat::zeros(noisyImage.rows, noisyImage.cols, noisyImage.type());
-        runImageFilter2D(program, "medianFilter", env, noisyImage.data, result.data, 
-                   noisyImage.cols, noisyImage.rows, noisyImage.channels(), radius);
-        return result;
-    }());
-
-    cv::Mat medianResultGPUShared = TIME_IT("Median GPU (Shared)", [&]() {
-        cv::Mat result = cv::Mat::zeros(noisyImage.rows, noisyImage.cols, noisyImage.type());
-        runImageFilter2DShared(program, "medianFilterShared", env, noisyImage.data, result.data,
-                   noisyImage.cols, noisyImage.rows, noisyImage.channels(), radius);
-        return result;
-    }());
-
-	cv::Mat l_orig   = addLabel(image, "Original");
-	cv::Mat l_noisy  = addLabel(noisyImage, "Noisy");
-	cv::Mat l_cpu    = addLabel(medianResult, "CPU");
-	cv::Mat l_naive  = addLabel(medianResultGPU, "GPU Naive");
-	cv::Mat l_shared = addLabel(medianResultGPUShared, "GPU Shared");
-	cv::Mat l_blank  = cv::Mat::zeros(l_orig.rows, l_orig.cols, l_orig.type());
-
-	cv::Mat row1, row2, grid;
-	cv::hconcat(std::vector<cv::Mat>{l_orig, l_noisy, l_cpu}, row1);
-	cv::hconcat(std::vector<cv::Mat>{l_naive, l_shared, l_blank}, row2);
-	cv::vconcat(row1, row2, grid);
-
-	cv::imshow("Median Filter Comparison", grid);
-	cv::Mat blurInput = image.clone();
-	cv::resize(blurInput, blurInput, cv::Size(512, 512 * blurInput.rows / blurInput.cols));
-	cv::Mat og = blurInput.clone();
-    double ms = measure_performance([&]() { gaussianBlurCPU(blurInput, generateGaussianKernel(2, 5)); });
-    std::cout << "Gaussian blur took " << ms << "ms\n";
-
-    cv::vconcat(og, blurInput, blurInput);
-    cv::imshow("Gaussian Blur", blurInput);
-	cv::waitKey(0);
-
 	return 0;
 }
