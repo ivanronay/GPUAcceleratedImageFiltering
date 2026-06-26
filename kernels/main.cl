@@ -132,7 +132,7 @@ __kernel void gaussian_blur_vertical_shared(
     int gy = get_group_id(1);
 
     int lsize = get_local_size(1); // changes to get_local_size(1) for vertical blur
-    int tile_width = lsize + 2 * radius;
+    int tile_width = get_local_size(0);
     
     int x = get_global_id(0);
     int y = get_global_id(1);
@@ -143,14 +143,14 @@ __kernel void gaussian_blur_vertical_shared(
 
     // copy to left halo, clamp if necessary: shared := [h,h,p,p...p,p,_,_]
     if(ly < radius){
-        int clampedindex = clamp(gy * lsize + ly - radius, 0, width - 1);
+        int clampedindex = clamp(gy * lsize + ly - radius, 0, height - 1);
         for(int c = 0; c < channels; ++c)
             scratch[(ly * tile_width + lx)*channels + c] = input[(clampedindex*width+x)*channels + c];
     }
 
     // copy to right halo, clamp if necessary: shared := [h,h,p,p...p,p,h,h]
     if(ly > lsize - 1 - radius && ly < lsize){
-        int clampedindex = clamp(gy * lsize + ly + radius, 0, width - 1);
+        int clampedindex = clamp(gy * lsize + ly + radius, 0, height - 1);
         for(int c = 0; c < channels; ++c)
             scratch[((ly + 2*radius) * tile_width + lx)*channels + c] = input[(clampedindex*width+x)*channels + c];
     }
@@ -163,7 +163,7 @@ __kernel void gaussian_blur_vertical_shared(
     float sums[4] = { 0,0,0,0 };
     for (int k =-radius; k <= radius; ++k) {
         for (int c = 0; c < channels; ++c) {
-            unsigned char pixelValue = scratch[(ly * tile_width + lx + radius + k) * channels + c];
+            float pixelValue = scratch[((ly + radius + k) * tile_width + lx) * channels + c];
 			sums[c] += pixelValue * kernel_buffer[k + radius];
         }
     }
