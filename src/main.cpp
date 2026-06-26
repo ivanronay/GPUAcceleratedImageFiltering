@@ -66,6 +66,16 @@ int main() {
 	std::vector<float> gkernel = generateGaussianKernel(radius,sigma);
 	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
 
+	std::cout << "=====================================" << std::endl;
+	std::cout << "Press" \
+		      << "\t g: Gaussian Blur" << std::endl \
+			  << "\t m: Median Filter" << std::endl \
+			  << "\t o: Show original image" << std::endl \
+			  << "\t +: Increase radius" << std::endl \
+			  << "\t -: Decrease radius" << std::endl \
+			  << "\t q or ESC: Quit" << std::endl;
+	std::cout << "=====================================" << std::endl << std::endl;
+
 	cv::imshow("Display", image);
 	while (true) {
 		int key = cv::waitKey(0);
