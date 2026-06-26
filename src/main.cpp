@@ -9,6 +9,7 @@
 #include "clutils.hpp"
 namespace fs = std::filesystem;
 
+// let user pick an image from the given dir
 std::string selectImage(const std::string& dir) {
     std::vector<std::string> files;
     for (auto& f : fs::directory_iterator(dir)) {
@@ -48,6 +49,7 @@ cv::Mat addLabel(const cv::Mat& img, const std::string& label, int w = 380) {
 }
 
 int main() {
+	// init opencl context and build kernels
 	OpenCLEnv env;
 	cl::Program program;
 	cl::Program gaussianProgram;
@@ -98,6 +100,8 @@ int main() {
 	std::cout << "=====================================" << std::endl << std::endl;
 
 	cv::imshow("Display", image);
+	
+	// interactive event loop
 	while (true) {
 		int key = cv::waitKey(0);
 

@@ -58,11 +58,7 @@ void gaussianBlurCPU(cv::Mat& src, cv::Mat& out, std::vector<float> kernel) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// CPU reference: Median filter
-// Applies an (2*radius+1) x (2*radius+1) median filter independently to
-// each colour channel. Border pixels are clamped to the image edge.
-// ---------------------------------------------------------------------------
+// cpu reference median filter
 cv::Mat medianFilterCPU(const cv::Mat& src, int radius) {
     int W = src.cols, H = src.rows, C = src.channels();
     cv::Mat dst = cv::Mat::zeros(H, W, src.type());

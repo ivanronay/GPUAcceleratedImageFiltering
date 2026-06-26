@@ -1,6 +1,6 @@
 #define MAX_RAD 15
 #define MAX_WINDOW_SIZE ((2 * MAX_RAD + 1) * (2 * MAX_RAD + 1))
-
+// bubblesort for small radius (<= 4)
 unsigned char getMedian(unsigned char* window, int size) {
     for (int i = 0; i < size - 1; ++i) {
         for (int j = 0; j < size - i - 1; ++j) {
@@ -14,7 +14,7 @@ unsigned char getMedian(unsigned char* window, int size) {
     return window[size / 2];
 }
 
-
+// histogram version for large radius (o(n))
 unsigned char getMedianHistogram(
     unsigned char* window,
     int size)
@@ -102,7 +102,7 @@ __kernel void medianFilterShared(
     
     int lx = get_local_id(0);
     int ly = get_local_id(1);
-
+    // shared memory for tile + halo
     __local unsigned char local_mem[(WG_W + 2 * MAX_RAD) * (WG_H + 2 * MAX_RAD)];
     
     int local_width = get_local_size(0) + 2 * radius;
@@ -115,7 +115,7 @@ __kernel void medianFilterShared(
     int group_y = y - ly;
 
     for (int c = 0; c < channels; ++c) {
-        
+        // cooperative fetch to local mem
         for (int i = tid; i < total_elements; i += total_threads) {
             
             int l_row = i / local_width;

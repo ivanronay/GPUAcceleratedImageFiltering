@@ -54,7 +54,7 @@ void buildProgram(cl::Program& program, const std::string& source, const OpenCLE
     }
 }
 
-// Runs a 2D image processing kernel with the necessary parameters
+// naive 2d kernel execution
 void runImageFilter2D(cl::Program& program, const std::string& function_name, OpenCLEnv& env, 
                       unsigned char* input_data, unsigned char* output_data, 
                       int width, int height, int channels, int radius) {
@@ -76,7 +76,7 @@ inline size_t roundUp(size_t group_size, size_t global_size) {
     return global_size + group_size - r;
 }
 
-// Runs a 2D image processing kernel using local/shared memory optimization
+// shared memory kernel execution with automatic padding
 inline void runImageFilter2DShared(cl::Program& program, const std::string& function_name, OpenCLEnv& env, 
                             unsigned char* input_data, unsigned char* output_data, 
                             int width, int height, int channels, int radius,
@@ -135,7 +135,7 @@ void runGaussianBlurGPUshared(cl::Program& program, OpenCLEnv& env,
     cl::Buffer output(env.context, CL_MEM_WRITE_ONLY, ucharsize);
     cl::Buffer kernelBuffer(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, kernel.size() * sizeof(float), kernel.data());
 
-    size_t localSize = 16; // Example local size, adjust as needed
+    size_t localSize = 16;
     size_t globalSizeX = ((width + localSize - 1) / localSize) * localSize;
     size_t globalSizeY = ((height + localSize - 1) / localSize) * localSize;
     size_t ScracthSizeX = (localSize + 2 * radius) * localSize * channels * sizeof(unsigned char);
