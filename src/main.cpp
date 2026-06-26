@@ -7,16 +7,6 @@
 #include "cvutils.hpp"
 #include "clutils.hpp"
 
-#define TIME_IT(label, expr) \
-		[&]() { \
-			double _t = cv::getTickCount(); \
-			auto _r = (expr); \
-			std::cout << (label) << ": " \
-			          << (cv::getTickCount() - _t) / cv::getTickFrequency() * 1000.0 \
-			          << " ms\n"; \
-			return _r; \
-		}()
-
 template <typename Func>
 double measure_performance(Func&& func) {
     auto start = std::chrono::high_resolution_clock::now();
@@ -26,18 +16,6 @@ double measure_performance(Func&& func) {
 }
 
 int main() {
-	// check for device support
-    std::vector<cl::Platform> platforms;
-    cl::Platform::get(&platforms);
-    for (auto& platform : platforms) {
-        std::cout << "Platform: " << platform.getInfo<CL_PLATFORM_NAME>() << std::endl;
-        std::vector<cl::Device> devices;
-        platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
-        for (auto& device : devices) {
-            std::cout << "  Device: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
-        }
-    }
-
 	OpenCLEnv env;
 	cl::Program program;
 	try {
@@ -49,7 +27,6 @@ int main() {
 		std::cerr << "OpenCL Initialization Error. " << std::endl;
 		return 1;
 	}
-
 
     // silence irritating OpenCV warnings
 	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_WARNING);
