@@ -63,6 +63,7 @@ int main() {
 
 	int radius = 2;
 	int sigma = 5;
+	bool useUnOptimized = false;
 	std::vector<float> gkernel = generateGaussianKernel(radius,sigma);
 	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
 
@@ -73,7 +74,8 @@ int main() {
 			  << "\t o: Show original image" << std::endl \
 			  << "\t +: Increase radius" << std::endl \
 			  << "\t -: Decrease radius" << std::endl \
-			  << "\t q or ESC: Quit" << std::endl;
+			  << "\t q or ESC: Quit" << std::endl
+		      << "\t u: Toggle unoptimized versions" << std::endl;
 	std::cout << "=====================================" << std::endl << std::endl;
 
 	cv::imshow("Display", image);
@@ -87,24 +89,28 @@ int main() {
 			cv::imshow("Display", image);
 		}
 		else if(key == 'g') {
-			double msCPU = measure_performance([&]() {gaussianBlurCPU(image, result, gkernel); });
-			double msGPU = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
-			double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
 			std::cout << "=====================================" << std::endl;
-			std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
-			std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
+			if (useUnOptimized) {
+				double msCPU = measure_performance([&]() {gaussianBlurCPU(image, result, gkernel); });
+				double msGPU = measure_performance([&]() {runGaussianBlurGPU(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+				std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
+				std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
+			}
+			double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(program, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
 			std::cout << "Gaussian blur (GPU shared) took " << msGPU2 << "ms" << std::endl;
 			std::cout << "=====================================" << std::endl << std::endl;
 
 			cv::imshow("Display", result);
 		}
 		else if (key == 'm') {
-			double msCPU = measure_performance([&]() {result = medianFilterCPU(image, radius);});
-			//double msGPU = measure_performance([&]() {runMedianFilterGPU(program, env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
-			//double msGPU2 = measure_performance([&]() {runMedianFilterGPUshared(program, env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
 			std::cout << "=====================================" << std::endl;
-			std::cout << "Median filter (CPU) took " << msCPU << "ms" << std::endl;
-			std::cout << "Median filter (GPU) took " << "N/A" << "ms" << std::endl;
+			if (useUnOptimized) {
+				double msCPU = measure_performance([&]() {result = medianFilterCPU(image, radius);});
+				// double msGPU = measure_performance([&]() {runMedianFilterGPU(program, env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
+				std::cout << "Median filter (CPU) took " << msCPU << "ms" << std::endl;
+				std::cout << "Median filter (GPU) took " << "N/A" << "ms" << std::endl;
+			}
+			//double msGPU2 = measure_performance([&]() {runMedianFilterGPUshared(program, env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
 			std::cout << "Median filter (GPU shared) took " << "N/A" << "ms" << std::endl;
 			std::cout << "=====================================" << std::endl << std::endl;
 
@@ -119,6 +125,10 @@ int main() {
 			radius = std::max(1, radius - 1);
 			gkernel = generateGaussianKernel(radius, sigma);
 			std::cout << "Radius decreased to " << radius << std::endl;
+		}
+		else if (key == 'u') {
+			useUnOptimized = !useUnOptimized;
+			std::cout << "Use unoptimized versions: " << (useUnOptimized ? "ON" : "OFF") << std::endl;
 		}
 	}
 
