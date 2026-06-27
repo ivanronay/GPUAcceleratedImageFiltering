@@ -1,6 +1,13 @@
 #pragma once
 #include <opencv2/opencv.hpp>
 
+cv::Mat addLabel(const cv::Mat& img, const std::string& label, int w = 380) {
+    cv::Mat out;
+    cv::resize(img, out, cv::Size(w, w * img.rows / img.cols));
+    cv::putText(out, label, cv::Point(6, 22), cv::FONT_HERSHEY_SIMPLEX, 0.65, cv::Scalar(0, 255, 0), 2);
+    return out;
+}
+
 // Generates 1D gaussian kernel of size 2r+1 with standard deviation sigma
 std::vector<float> generateGaussianKernel(int radius, float sigma) {
     std::vector<float> kernel((2 * radius + 1));

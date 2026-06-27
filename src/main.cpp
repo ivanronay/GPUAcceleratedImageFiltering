@@ -41,25 +41,18 @@ double measure_performance(Func&& func) {
     return std::chrono::duration<double, std::milli>(end - start).count();
 }
 
-cv::Mat addLabel(const cv::Mat& img, const std::string& label, int w = 380) {
-    cv::Mat out;
-    cv::resize(img, out, cv::Size(w, w * img.rows / img.cols));
-    cv::putText(out, label, cv::Point(6, 22), cv::FONT_HERSHEY_SIMPLEX, 0.65, cv::Scalar(0, 255, 0), 2);
-    return out;
-}
-
 int main() {
 	// init opencl context and build kernels
 	OpenCLEnv env;
-	cl::Program program;
+	cl::Program medianProgram;
 	cl::Program gaussianProgram;
 	try {
 		env = initOpenCL();
-		std::string source = loadKernelSource("../kernels/main.cl");
-		std::string source2 = loadKernelSource("../kernels/gaussian.cl");
+		std::string medianSource = loadKernelSource("../kernels/median.cl");
+		std::string gaussianSource = loadKernelSource("../kernels/gaussian.cl");
 
-		buildProgram(program, source, env);
-		buildProgram(gaussianProgram, source2, env);
+		buildProgram(medianProgram, medianSource, env);
+		buildProgram(gaussianProgram, gaussianSource, env);
 	}
 	catch (const std::exception& e) {
 		std::cerr << "OpenCL Initialization Error. " << std::endl;
@@ -82,7 +75,7 @@ int main() {
 	int radius = 2;
 	int sigma = 5;
 	bool useUnOptimized = false;
-	std::vector<float> gkernel = generateGaussianKernel(radius,sigma);
+	std::vector<float> gaussianKernel = generateGaussianKernel(radius,sigma);
 	cv::Mat result = cv::Mat::zeros(image.rows, image.cols, image.type());
 	cv::Mat result2 = cv::Mat::zeros(image.rows, image.cols, image.type());
 	cv::Mat noisyImage;
@@ -119,12 +112,12 @@ int main() {
 		else if(key == 'g') {
 			std::cout << "=====================================" << std::endl;
 			if (useUnOptimized) {
-				double msCPU = measure_performance([&]() {gaussianBlurCPU(image, result, gkernel); });
-				double msGPU = measure_performance([&]() {runGaussianBlurGPU(gaussianProgram, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+				double msCPU = measure_performance([&]() {gaussianBlurCPU(image, result, gaussianKernel); });
+				double msGPU = measure_performance([&]() {runGaussianBlurGPU(gaussianProgram, env, image.data, result.data, gaussianKernel, image.cols, image.rows, image.channels(), radius); });
 				std::cout << "Gaussian blur (CPU) took " << msCPU << "ms" << std::endl;
 				std::cout << "Gaussian blur (GPU) took " << msGPU << "ms" << std::endl;
 			}
-			double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(gaussianProgram, env, image.data, result.data, gkernel, image.cols, image.rows, image.channels(), radius); });
+			double msGPU2 = measure_performance([&]() {runGaussianBlurGPUshared(gaussianProgram, env, image.data, result.data, gaussianKernel, image.cols, image.rows, image.channels(), radius); });
 			std::cout << "Gaussian blur (GPU shared) took " << msGPU2 << "ms" << std::endl;
 			std::cout << "=====================================" << std::endl << std::endl;
 			cv::imshow("Display", result);
@@ -133,11 +126,11 @@ int main() {
 			std::cout << "=====================================" << std::endl;
 			if (useUnOptimized) {
 				double msCPU = measure_performance([&]() {result = medianFilterCPU(image, radius);});
-				double msGPU = measure_performance([&]() {runImageFilter2D(program, "medianFilter", env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
+				double msGPU = measure_performance([&]() {runImageFilter2D(medianProgram, "medianFilter", env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
 				std::cout << "Median filter (CPU) took " << msCPU << "ms" << std::endl;
 				std::cout << "Median filter (GPU) took " << msGPU << "ms" << std::endl;
 			}
-			double msGPU2 = measure_performance([&]() {runImageFilter2DShared(program,"medianFilterShared", env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
+			double msGPU2 = measure_performance([&]() {runImageFilter2DShared(medianProgram,"medianFilterShared", env, image.data, result.data, image.cols, image.rows, image.channels(), radius); });
 			std::cout << "Median filter (GPU shared) took " << msGPU2 << "ms" << std::endl;
 			std::cout << "=====================================" << std::endl << std::endl;
 
@@ -147,12 +140,12 @@ int main() {
 			double SPms = measure_performance([&]() {noisyImage = addSaltAndPepperNoise(image, 0.1); });
 			double CPUms = measure_performance([&]() {medianResult = medianFilterCPU(noisyImage, radius); });
 			double GPUms = measure_performance([&]() {
-				runImageFilter2D(program, "medianFilter", env, noisyImage.data, result.data,
+				runImageFilter2D(medianProgram, "medianFilter", env, noisyImage.data, result.data,
 					noisyImage.cols, noisyImage.rows, noisyImage.channels(), radius);
 				});
 
 			double GPU2ms = measure_performance([&]() {
-				runImageFilter2DShared(program, "medianFilterShared", env, noisyImage.data, result2.data,
+				runImageFilter2DShared(medianProgram, "medianFilterShared", env, noisyImage.data, result2.data,
 					noisyImage.cols, noisyImage.rows, noisyImage.channels(), radius);
 				});
 
@@ -172,12 +165,12 @@ int main() {
 		}
 		else if (key == '+') {
 			radius = std::min(15, radius + 1);
-			gkernel = generateGaussianKernel(radius, sigma);
+			gaussianKernel = generateGaussianKernel(radius, sigma);
 			std::cout << "Radius increased to " << radius << std::endl;
 		}
 		else if (key == '-') {
 			radius = std::max(1, radius - 1);
-			gkernel = generateGaussianKernel(radius, sigma);
+			gaussianKernel = generateGaussianKernel(radius, sigma);
 			std::cout << "Radius decreased to " << radius << std::endl;
 		}
 		else if (key == 'u') {
@@ -195,8 +188,8 @@ int main() {
 				for (int r = 1; r <= 15; ++r) {
 					std::cout << "  r=" << r << "..." << std::endl;
 					double msCPU    = measure_performance([&]() { medianFilterCPU(noisyBench, r); });
-					double msGPU    = measure_performance([&]() { runImageFilter2D(program, "medianFilter", env, noisyBench.data, result.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
-					double msShared = measure_performance([&]() { runImageFilter2DShared(program, "medianFilterShared", env, noisyBench.data, result2.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
+					double msGPU    = measure_performance([&]() { runImageFilter2D(medianProgram, "medianFilter", env, noisyBench.data, result.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
+					double msShared = measure_performance([&]() { runImageFilter2DShared(medianProgram, "medianFilterShared", env, noisyBench.data, result2.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
 					csv << r << "," << msCPU << "," << msGPU << "," << msShared << "\n";
 				}
 				csv.close();
