@@ -186,7 +186,7 @@ int main() {
 		}
 		else if (key == 'b') {
 			std::cout << "Running benchmark (Radius 1 to 15)..." << std::endl;
-			std::ofstream csv("../benchmark_results.csv");
+			std::ofstream csv("../analysis/benchmark_results.csv");
 			if (!csv.is_open()) {
 				std::cerr << "Failed to open CSV for writing!" << std::endl;
 			} else {
@@ -200,26 +200,33 @@ int main() {
 					csv << r << "," << msCPU << "," << msGPU << "," << msShared << "\n";
 				}
 				csv.close();
-				std::cout << "Done. Saved to ../median_benchmark.csv" << std::endl;
+				std::cout << "Done. Saved to ../analysis/median_benchmark.csv" << std::endl;
 			}
 		}
 		else if (key == 'n') {
 			std::cout << "Running Gaussian benchmark (Radius 1 to 15)..." << std::endl;
-			std::ofstream csv("../gaussian_benchmark.csv");
+			std::ofstream csv("../analysis/gaussian_benchmark.csv");
 			if (!csv.is_open()) {
 				std::cerr << "Failed to open CSV for writing!" << std::endl;
 			} else {
 				csv << "Radius,CPU_ms,GPU_Naive_ms,GPU_Shared_ms\n";
+				const int numRuns = 10;
 				for (int r = 1; r <= 15; ++r) {
 					std::cout << "  r=" << r << "..." << std::endl;
-					std::vector<float> gk = generateGaussianKernel(r, (float)r / 2.0f + 0.5f);
-					double msCPU    = measure_performance([&]() { gaussianBlurCPU(image, result, gk); });
-					double msGPU    = measure_performance([&]() { runGaussianBlurGPU(gaussianProgram, env, image.data, result.data, gk, image.cols, image.rows, image.channels(), r); });
-					double msShared = measure_performance([&]() { runGaussianBlurGPUshared(gaussianProgram, env, image.data, result2.data, gk, image.cols, image.rows, image.channels(), r); });
-					csv << r << "," << msCPU << "," << msGPU << "," << msShared << "\n";
+					float msCPUsum = 0.0f; float msGPUsum = 0.0f; float msSharedsum = 0.0f;
+					for (int i = 0; i < numRuns; ++i)
+					{
+						std::vector<float> gk = generateGaussianKernel(r, (float)r / 2.0f + 0.5f);
+						double msCPU = measure_performance([&]() { gaussianBlurCPU(image, result, gk); });
+						double msGPU = measure_performance([&]() { runGaussianBlurGPU(gaussianProgram, env, image.data, result.data, gk, image.cols, image.rows, image.channels(), r); });
+						double msShared = measure_performance([&]() { runGaussianBlurGPUshared(gaussianProgram, env, image.data, result2.data, gk, image.cols, image.rows, image.channels(), r); });
+						msCPUsum += msCPU; msGPUsum += msGPU; msSharedsum += msShared;
+					}
+					msCPUsum /= numRuns; msGPUsum /= numRuns; msSharedsum /= numRuns;
+					csv << r << "," << msCPUsum << "," << msGPUsum << "," << msSharedsum << "\n";
 				}
 				csv.close();
-				std::cout << "Done. Saved to ../gaussian_benchmark.csv" << std::endl;
+				std::cout << "Done. Saved to ../analysis/gaussian_benchmark.csv" << std::endl;
 			}
 		}
 	}

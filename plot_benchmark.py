@@ -35,23 +35,23 @@ def save_plot(radii, cpu, gpu_naive, gpu_shared, title, filename):
 
 # --- Median ---
 # fallback to old name if the new one doesn't exist yet
-median_file = 'median_benchmark.csv' if os.path.exists('median_benchmark.csv') else 'benchmark_results.csv'
+median_file = 'analysis/median_benchmark.csv' if os.path.exists('analysis/median_benchmark.csv') else 'analysis/benchmark_results.csv'
 radii, cpu, gpu_naive, gpu_shared = read_csv(median_file)
 if radii:
     save_plot(radii, cpu, gpu_naive, gpu_shared,
-              'Median Filter: CPU vs GPU', 'median_benchmark_plot.png')
+              'Median Filter: CPU vs GPU', 'analysis/median_benchmark_plot.png')
     save_plot(radii, None, gpu_naive, gpu_shared,
-              'Median Filter: GPU Naive vs Shared Memory', 'median_benchmark_plot_gpu_only.png')
+              'Median Filter: GPU Naive vs Shared Memory', 'analysis/median_benchmark_plot_gpu_only.png')
 else:
-    print("No median CSV found (tried median_benchmark.csv and benchmark_results.csv), skipping.")
+    print("No median CSV found (tried analysis/median_benchmark.csv and analysis/benchmark_results.csv), skipping.")
 
 # --- Gaussian ---
-radii, cpu, gpu_naive, gpu_shared = read_csv('gaussian_benchmark.csv')
+radii, cpu, gpu_naive, gpu_shared = read_csv('analysis/gaussian_benchmark.csv')
 if radii:
     save_plot(radii, cpu, gpu_naive, gpu_shared,
-              'Gaussian Blur: CPU vs GPU', 'gaussian_benchmark_plot.png')
+              'Gaussian Blur: CPU vs GPU', 'analysis/gaussian_benchmark_plot.png')
     save_plot(radii, None, gpu_naive, gpu_shared,
-              'Gaussian Blur: GPU Naive vs Shared Memory', 'gaussian_benchmark_plot_gpu_only.png')
+              'Gaussian Blur: GPU Naive vs Shared Memory', 'analysis/gaussian_benchmark_plot_gpu_only.png')
 else:
-    print("gaussian_benchmark.csv not found, skipping.")
+    print("analysis/gaussian_benchmark.csv not found, skipping.")
 
