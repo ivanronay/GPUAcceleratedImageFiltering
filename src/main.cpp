@@ -184,13 +184,18 @@ int main() {
 				std::cerr << "Failed to open CSV for writing!" << std::endl;
 			} else {
 				csv << "Radius,CPU_ms,GPU_Naive_ms,GPU_Shared_ms\n";
+				const int numRuns = 5;
 				cv::Mat noisyBench = addSaltAndPepperNoise(image, 0.1);
 				for (int r = 1; r <= 15; ++r) {
 					std::cout << "  r=" << r << "..." << std::endl;
 					double msCPU    = measure_performance([&]() { medianFilterCPU(noisyBench, r); });
-					double msGPU    = measure_performance([&]() { runImageFilter2D(medianProgram, "medianFilter", env, noisyBench.data, result.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
-					double msShared = measure_performance([&]() { runImageFilter2DShared(medianProgram, "medianFilterShared", env, noisyBench.data, result2.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
-					csv << r << "," << msCPU << "," << msGPU << "," << msShared << "\n";
+					double msGPU = 0.0, msShared = 0.0;
+					for (int i = 0; i < numRuns; i++) {
+						msGPU    += measure_performance([&]() { runImageFilter2D(medianProgram, "medianFilter", env, noisyBench.data, result.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
+						msShared += measure_performance([&]() { runImageFilter2DShared(medianProgram, "medianFilterShared", env, noisyBench.data, result2.data, noisyBench.cols, noisyBench.rows, noisyBench.channels(), r); });
+					}
+					msGPU /= numRuns; msShared /= numRuns;
+					csv << r << "," << msCPU << "," << msGPU << "," << msShared  << "\n";
 				}
 				csv.close();
 				std::cout << "Done. Saved to ../analysis/median_benchmark.csv" << std::endl;
