@@ -2,7 +2,7 @@
 #define MAX_WINDOW_SIZE ((2 * MAX_RAD + 1) * (2 * MAX_RAD + 1))
 // bubblesort for small radius (<= 4)
 unsigned char getMedian(unsigned char* window, int size) {
-    for (int i = 0; i < size - 1; ++i) {
+    for (int i = 0; i <= size/2; ++i) {
         for (int j = 0; j < size - i - 1; ++j) {
             if (window[j] > window[j + 1]) {
                 unsigned char temp = window[j];
