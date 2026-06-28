@@ -103,7 +103,7 @@ int main() {
 		// Uncomment this if you want to see what keycode OpenCV is receiving:
 		std::cout << "Key pressed: " << key << " (char: " << (char)key << ")" << std::endl;
 
-		if(key == 27 || key == 'q') {
+		if(key == 27 || key == 'q' || key == 255) {
 			break;
 		}
 		else if (key == 'o') {
