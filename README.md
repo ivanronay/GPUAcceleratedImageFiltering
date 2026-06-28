@@ -20,13 +20,13 @@ The dynamic switching resulted in lower performance overall.
 
 #### CPU vs GPU Overview
 
-![Median CPU vs GPU](median_benchmark_plot.png)
+![Median CPU vs GPU](analysis/median_benchmark_plot.png)
 
 The CPU execution time grows quadratically — at R=15 it reaches ~30 seconds while both GPU versions stay below 700ms. The difference between the two GPU implementations is invisible at this scale.
 
 #### GPU Naive vs Shared Memory
 
-![Median GPU Only](median_benchmark_plot_gpu_only.png)
+![Median GPU Only](analysis/median_benchmark_plot_gpu_only.png)
 
 At R=15, the Shared Memory version is roughly 1.5x faster than Naive.
 
@@ -35,13 +35,13 @@ At R=15, the Shared Memory version is roughly 1.5x faster than Naive.
 
 #### CPU vs GPU Overview
 
-![Gaussian CPU vs GPU](gaussian_benchmark_plot.png)
+![Gaussian CPU vs GPU](analysis/gaussian_benchmark_plot.png)
 
 The CPU Gaussian blur is also a separable 2-pass filter, so it scales linearly (O(N)) rather than quadratically. However, the sequential per-pixel computation still falls far behind the GPU at larger radii.
 
 #### GPU Naive vs Shared Memory
 
-![Gaussian GPU Only](gaussian_benchmark_plot_gpu_only.png)
+![Gaussian GPU Only](analysis/gaussian_benchmark_plot_gpu_only.png)
 
 Unlike the median filter, the Gaussian blur is a linear convolution operation. The Shared Memory version maintains an advantage through better memory access patterns via the 1D halo tiles.
 
