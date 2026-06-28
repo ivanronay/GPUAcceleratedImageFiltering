@@ -53,7 +53,7 @@ The CPU Gaussian blur is also a separable 2-pass filter, so it scales linearly (
 
 ![Gaussian GPU Only](analysis/gaussian_benchmark_plot_gpu_only.png)
 
-Unlike the median filter, the Gaussian blur is a linear convolution operation. The Shared Memory version maintains an advantage through better memory access patterns via the 1D halo tiles.
+Unlike the median filter, the Gaussian blur is a linear convolution operation. The Shared Memory version maintains an advantage through better memory access patterns via the 1D halo tiles. Although the high variance probably comes from `std::chrono`'s error.
 
 ---
 
