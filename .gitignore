@@ -7,7 +7,6 @@
 build/
 *.png
 *.csv
-analysis/
 
 # User-specific files
 *.rsuser
