@@ -5,8 +5,6 @@
 
 # extras added by us
 build/
-*.png
-*.csv
 
 # User-specific files
 *.rsuser
