@@ -1,7 +1,5 @@
-#define MAX_RAD 15
-#define MAX_WINDOW_SIZE ((2 * MAX_RAD + 1) * (2 * MAX_RAD + 1))
 // bubblesort for small radius (<= 4)
-unsigned char getMedian(unsigned char* window, int size) {
+/*unsigned char getMedian(unsigned char* window, int size) {
     for (int i = 0; i <= size/2; ++i) {
         for (int j = 0; j < size - i - 1; ++j) {
             if (window[j] > window[j + 1]) {
@@ -12,20 +10,17 @@ unsigned char getMedian(unsigned char* window, int size) {
         }
     }
     return window[size / 2];
-}
+}*/
 
 // histogram version for large radius (o(n))
 unsigned char getMedianHistogram(
-    unsigned char* window,
+    unsigned short* hist,
     int size)
 {
-    int hist[256] = {0};
-    for (int i = 0; i < size; ++i)
-    {
-        hist[window[i]]++;
-    }
     int target = size / 2;
     int count = 0;
+
+    # pragma unroll 1
     for (int value = 0; value < 256; ++value)
     {
         count += hist[value];
@@ -40,12 +35,12 @@ unsigned char getMedianHistogram(
 
 // autoselecting between the two medians
 // switch at r>3: above 7x7 (49 elements) bubblesort becomes too slow
-unsigned char getMedianAuto(unsigned char* window, int windowSize, int radius) {
+/*unsigned char getMedianAuto(unsigned char* window, int windowSize, int radius) {
     if (radius > 3)
         return getMedianHistogram(window, windowSize);
     else
         return getMedian(window, windowSize);
-}
+}*/
 
 // Naive median filter kernel
 __kernel void medianFilter(
@@ -65,10 +60,9 @@ __kernel void medianFilter(
 
     int windowSize = (2 * radius + 1) * (2 * radius + 1);
     
-    unsigned char window[MAX_WINDOW_SIZE];
 
     for (int c = 0; c < channels; ++c) {
-        int idx = 0;
+        unsigned short hist[256] = {0};
         
         for (int ky = -radius; ky <= radius; ++ky) {
             for (int kx = -radius; kx <= radius; ++kx) {
@@ -76,23 +70,21 @@ __kernel void medianFilter(
                 int px = clamp(x + kx, 0, width - 1);
                 int py = clamp(y + ky, 0, height - 1);
                 
-                window[idx++] = input[(py * width + px) * channels + c];
+                hist[input[(py * width + px) * channels + c]]++;
             }
         }
         
         // radius > 4: histogram version
-        output[(y * width + x) * channels + c] = getMedianAuto(window, windowSize, radius);
+        output[(y * width + x) * channels + c] = getMedianHistogram(hist, windowSize);
     }
 }
 
-
-// Macros for shared memory version
-#define WG_W 16
-#define WG_H 16
+// Optimized median filter kernel using shared memory
 
 __kernel void medianFilterShared(
     __global const unsigned char* input,
     __global unsigned char* output,
+    __local unsigned char* local_mem,
     const int width,
     const int height,
     const int channels,
@@ -103,8 +95,6 @@ __kernel void medianFilterShared(
     
     int lx = get_local_id(0);
     int ly = get_local_id(1);
-    // shared memory for tile + halo
-    __local unsigned char local_mem[(WG_W + 2 * MAX_RAD) * (WG_H + 2 * MAX_RAD)];
     
     int local_width = get_local_size(0) + 2 * radius;
     int total_elements = local_width * (get_local_size(1) + 2 * radius); 
@@ -137,17 +127,16 @@ __kernel void medianFilterShared(
         
         if (x < width && y < height) {
             int windowSize = (2 * radius + 1) * (2 * radius + 1);
-            unsigned char window[MAX_WINDOW_SIZE]; 
+            unsigned short hist[256] = {0}; 
             
-            int idx = 0;
             // double loop on local tile
             for (int ky = 0; ky <= 2 * radius; ++ky) {
                 for (int kx = 0; kx <= 2 * radius; ++kx) {
-                    window[idx++] = local_mem[(ly + ky) * local_width + (lx + kx)];
+                    hist[local_mem[(ly + ky) * local_width + (lx + kx)]]++;
                 }
             }
             
-            output[(y * width + x) * channels + c] = getMedianAuto(window, windowSize, radius);
+            output[(y * width + x) * channels + c] = getMedianHistogram(hist, windowSize);
         }
         
         barrier(CLK_LOCAL_MEM_FENCE);

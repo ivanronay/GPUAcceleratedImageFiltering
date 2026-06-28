@@ -82,20 +82,21 @@ inline void runImageFilter2DShared(cl::Program& program, const std::string& func
                             int width, int height, int channels, int radius,
                             int local_w = 16, int local_h = 16) {
     
-    size_t size = width * height * channels;
+    size_t size = width * height * channels * sizeof(unsigned char);
+	size_t local_size = (local_w + 2 * radius) * (local_h + 2 * radius) * sizeof(unsigned char);
     cl::Buffer input(env.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, size, input_data);
     cl::Buffer output(env.context, CL_MEM_WRITE_ONLY, size);
 
-    cl::KernelFunctor<cl::Buffer, cl::Buffer, int, int, int, int> kernel(program, function_name);
+    cl::KernelFunctor<cl::Buffer, cl::Buffer, cl::LocalSpaceArg, int, int, int, int> kernel(program, function_name);
 
     size_t gx = roundUp(local_w, width);
     size_t gy = roundUp(local_h, height);
 
-    cl::NDRange global_size(gx, gy);
-    cl::NDRange local_size(local_w, local_h);
+    cl::NDRange global(gx, gy);
+    cl::NDRange local(local_w, local_h);
 
     try {
-        kernel(cl::EnqueueArgs(env.queue, global_size, local_size), input, output, width, height, channels, radius);
+        kernel(cl::EnqueueArgs(env.queue, cl::NullRange, global, local), input, output, cl::Local(local_size), width, height, channels, radius);
         env.queue.enqueueReadBuffer(output, CL_TRUE, 0, size, output_data);
     } catch (const cl::Error&) {
         std::cerr << "Error on runImageFilter2DShared";
