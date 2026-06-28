@@ -12,7 +12,7 @@ add_executable(ImageFilteringMain
   include/clutils.hpp
   include/cvutils.hpp
   src/main.cpp
-  kernels/main.cl
+  kernels/median.cl
   kernels/gaussian.cl
 )
 
