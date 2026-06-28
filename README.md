@@ -16,7 +16,19 @@ Execution times measured with `std::chrono` on a 1024px wide image. Each radius 
 
 #### Hybrid Median Algorithm
 
-The dynamic switching resulted in lower performance overall.
+The `getMedianAuto` kernel dynamically switches between Bubble Sort (R < 4) and Histogram-based search (R ≥ 4) to attempt to maximize throughput across all radii.
+
+##### CPU vs GPU (Hybrid)
+
+![Hybrid Median CPU vs GPU](analysis/median_benchmark_plot_hybrid.png)
+
+The CPU time grows steeply while both GPU variants stay well below 300 ms across all radii. Note the small spike at R=1 where the histogram path's overhead slightly penalises the very smallest windows.
+
+##### GPU Naive vs Shared Memory (Hybrid)
+
+![Hybrid Median GPU Only](analysis/median_benchmark_plot_gpu_only_hybrid.png)
+
+The dynamic switching resulted in lower performance overall compared to the dedicated histogram kernel. See the conclusion in the [Technical Documentation](#algorithmic-optimization-attempt-hybrid-median-search) section below.
 
 #### CPU vs GPU Overview
 
