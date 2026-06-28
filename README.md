@@ -22,19 +22,17 @@ The `getMedianAuto` kernel dynamically switches between Bubble Sort (R < 4) and 
 
 ![Hybrid Median CPU vs GPU](analysis/median_benchmark_plot_hybrid.png)
 
-The CPU time grows steeply while both GPU variants stay well below 300 ms across all radii. Note the small spike at R=1 where the histogram path's overhead slightly penalises the very smallest windows.
-
-##### GPU Naive vs Shared Memory (Hybrid)
+The CPU time grows quadratically while both GPU variants stay well below 300 ms across all radii. Note the small spike at R=1 where the histogram path's overhead slightly penalises the very smallest windows:
 
 ![Hybrid Median GPU Only](analysis/median_benchmark_plot_gpu_only_hybrid.png)
 
-The dynamic switching resulted in lower performance overall compared to the dedicated histogram kernel. See the conclusion in the [Technical Documentation](#algorithmic-optimization-attempt-hybrid-median-search) section below.
+The dynamic switching resulted in slightly lower performance overall compared to the dedicated histogram kernel. See the conclusion in the [Technical Documentation](#algorithmic-optimization-attempt-hybrid-median-search) section below.
 
 #### CPU vs GPU Overview
 
 ![Median CPU vs GPU](analysis/median_benchmark_plot.png)
 
-The CPU execution time grows quadratically — at R=15 it reaches ~30 seconds while both GPU versions stay below 700ms. The difference between the two GPU implementations is invisible at this scale.
+The CPU execution time grows quadratically. At R=15 it reaches ~30 seconds while both GPU versions stay below 300ms. The difference between the two GPU implementations is invisible at this scale.
 
 #### GPU Naive vs Shared Memory
 
