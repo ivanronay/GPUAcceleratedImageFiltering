@@ -86,6 +86,7 @@ int main() {
 		      << "\t g: Gaussian Blur" << std::endl \
 			  << "\t m: Median Filter" << std::endl \
 			  << "\t o: Show original image" << std::endl \
+			  << "\t p: Show image montage" << std::endl \
 			  << "\t +: Increase radius" << std::endl \
 			  << "\t -: Decrease radius" << std::endl \
 			  << "\t q or ESC: Quit" << std::endl
