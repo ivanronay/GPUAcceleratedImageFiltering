@@ -1,5 +1,8 @@
 # GPU Accelerated Image Filtering
-This repo is for a university course at ELTE. See: https://cv.inf.elte.hu/index.php/education/gpu-programozas/
+Implementing and comparing various image filtering methods on CPU and GPU, wrapped in an interactive environment.
+|Before|After|
+|---|---|
+|<img alt="Duck1" src="https://github.com/user-attachments/assets/01e1bc7d-0690-4f2a-bf98-b0e35801e71f" />|<img alt="Duck2" src="https://github.com/user-attachments/assets/cfd17bed-f150-4134-9384-dd775ae1cc0d" />|
 
 ## Recommended CMake command
 `cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake`
